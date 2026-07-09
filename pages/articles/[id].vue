@@ -39,11 +39,7 @@ useHead(() => ({
             @click="toggleSaved"
           >
             <img v-if="!isSaved" src="/icons/heart.png" alt="" class="h-4 w-4">
-            <svg v-else class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path
-                d="M12 21s-6.72-4.36-9.33-8.6C1.02 9.7 1.9 6.4 4.9 5.2c1.9-.76 3.9-.2 5.1 1.2l2 2.3 2-2.3c1.2-1.4 3.2-1.96 5.1-1.2 3 1.2 3.88 4.5 2.23 7.2C18.72 16.64 12 21 12 21z"
-              />
-            </svg>
+            <img v-else src="/icons/heart-minus.png" alt="" class="h-4 w-4">
           </button>
           <div v-else class="h-9 w-9" />
         </div>
