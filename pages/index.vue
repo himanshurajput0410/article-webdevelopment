@@ -3,15 +3,21 @@ const { articles, pending, error, refresh } = await useArticles()
 
 const viewMode = ref<'list' | 'grid'>('list')
 const searchOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
 const query = ref('')
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'grid' : 'list'
 }
 
-function toggleSearch() {
+async function toggleSearch() {
   searchOpen.value = !searchOpen.value
-  if (!searchOpen.value) query.value = ''
+  if (!searchOpen.value) {
+    query.value = ''
+    return
+  }
+  await nextTick()
+  searchInput.value?.focus()
 }
 
 const filteredArticles = computed(() => {
@@ -42,7 +48,7 @@ const gridClasses = computed(() =>
 </script>
 
 <template>
-  <div>
+  <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
     <div class="mb-4 flex items-center justify-between gap-3">
       <h1 class="text-2xl font-bold text-gray-900">Articles</h1>
 
@@ -65,7 +71,7 @@ const gridClasses = computed(() =>
         <button
           type="button"
           class="rounded-full p-2 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-          aria-label="Search articles"
+          :aria-label="searchOpen ? 'Close search' : 'Search articles'"
           @click="toggleSearch"
         >
           <img src="/icons/search.png" alt="" class="h-5 w-5">
@@ -75,8 +81,10 @@ const gridClasses = computed(() =>
 
     <input
       v-if="searchOpen"
+      ref="searchInput"
       v-model="query"
       type="search"
+      aria-label="Search articles by title"
       placeholder="Search articles by title"
       class="mb-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
     >
@@ -100,7 +108,7 @@ const gridClasses = computed(() =>
     <CommonEmptyState
       v-else-if="filteredArticles.length === 0"
       title="No matches"
-      :message="`Nothing found for &quot;${query}&quot;.`"
+      :message="`Nothing found for &quot;${query.trim()}&quot;.`"
     />
 
     <template v-else>

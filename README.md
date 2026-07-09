@@ -9,7 +9,7 @@ inconsistent content, loading/empty/error states, and no stable article id.
 - [Nuxt 3](https://nuxt.com/) (SSR)
 - TypeScript, strict mode (`any` is disallowed by both `tsconfig` and an ESLint rule)
 - Vue 3 Composition API (`<script setup>`)
-- [Pinia](https://pinia.vuejs.org/) for the shared article cache
+- [Pinia](https://pinia.vuejs.org/) for the shared article cache and the saved-articles list
 - Native `useFetch`, wrapped in a centralized composable — never called directly from a page/component
 - Tailwind CSS (`@nuxtjs/tailwindcss`)
 - ESLint (`@nuxt/eslint`)
@@ -52,9 +52,11 @@ pages/
   articles/[id].vue    Article detail
 stores/
   articles.ts    Pinia store — single source of truth for the fetched article list
+  favorites.ts   Pinia store — ids of saved/bookmarked articles
 types/           Shared cross-cutting types (ApiError)
-utils/           Pure helpers — id derivation, date formatting, content cleanup, raw→domain mapping
+utils/           Pure helpers — id derivation, date/relative-time formatting, content cleanup, raw→domain mapping
 assets/css/      Tailwind entrypoint
+public/icons/    Icon assets exported from the Figma design
 ```
 
 ## API & Composable Strategy
@@ -111,6 +113,30 @@ assets/css/      Tailwind entrypoint
   UI never displays that inconsistent trailing text.
 - A root `error.vue` catches anything unhandled (e.g. a thrown Nitro error)
   so the app never shows a blank screen.
+- `useArticles()` defends against a malformed API payload rather than trusting
+  its shape: if `articles` isn't an array (or is missing) it falls back to an
+  empty list, and any entry without a `url` (the one field every domain
+  article needs, for routing and the external link) is dropped before
+  mapping — a bad response degrades to the empty state instead of throwing.
+
+## State Management & UX Additions
+
+- **Article cache (`stores/articles.ts`)** is genuinely shared state: both the
+  list and detail pages read it, so it belongs in Pinia rather than
+  component-local state.
+- **Favorites (`stores/favorites.ts`)** — the detail screen's heart button
+  saves/unsaves an article, persisted to `localStorage` and rehydrated in
+  `app.vue`'s `onMounted` (deliberately *after* mount, so the client's first
+  render still matches the server-rendered HTML and Vue never throws a
+  hydration mismatch). A plain component `ref` would reset every time the
+  user navigated away and back, which is exactly the kind of case Pinia is
+  for — hence it's a store, not local state.
+- **Title search and "Load More" pagination** on the list page aren't in the
+  brief's functional requirements, but the design includes a search icon and
+  asked that the list not render everything at once — an inert icon or an
+  unbounded 79-item list would both read as unfinished, so both are wired up:
+  search filters the already-fetched list client-side (no extra requests),
+  and pagination reveals 8 articles at a time.
 
 ## Assumptions
 
@@ -118,11 +144,16 @@ assets/css/      Tailwind entrypoint
   is therefore served by fetching/caching the same list and looking up by the
   derived id, rather than a second request per article.
 - The Figma design link in the brief requires an authenticated session and
-  couldn't be opened programmatically in this environment. The mobile list/grid
-  screens were instead matched against exported screenshots and icon assets
-  (card color `#233D46`, calendar/grid/list/search icons in `public/icons/`);
-  screens not yet screenshotted (article detail) use my own interpretation
-  pending reference images.
+  couldn't be opened programmatically in this environment. Both the article
+  list (list/grid views) and the article detail screen were instead matched
+  against exported mobile screenshots and icon assets (card color `#233D46`,
+  and the calendar/grid/list/search/arrow/heart icons in `public/icons/`).
+  The desktop/tablet layout is my own responsive adaptation of that mobile
+  design, per the brief.
+- The "Article" label in the detail header and the like/save action are a
+  static page label and a local bookmarking feature respectively — the API
+  has no per-article title for the nav bar or a favorites endpoint, so
+  neither is backed by the API.
 - The feed is loaded in full on first render (SSR) and paginated client-side
   ("Load More", 8 at a time) rather than requesting pages from the API, since
   the mock endpoint has no pagination parameters of its own.
@@ -132,11 +163,9 @@ assets/css/      Tailwind entrypoint
 
 ## What I'd Improve With More Time
 
-- Match the remaining screens (article detail) to Figma once those screenshots
-  are available.
 - Add unit tests for the pure utils (`hashToId`, `cleanArticleContent`,
-  `mapApiArticleToDomain`) and component tests for the loading/error/empty
-  branches, via Vitest + `@vue/test-utils`.
+  `formatRelativeTime`, `mapApiArticleToDomain`) and component tests for the
+  loading/error/empty branches, via Vitest + `@vue/test-utils`.
 - Swap client-side "Load More" slicing for real API pagination if the feed
   gains pagination parameters.
 - Wire up CI (typecheck + lint + build) via GitHub Actions.

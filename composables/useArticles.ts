@@ -1,4 +1,4 @@
-import type { ApiArticlesResponse } from '~/models/api/article'
+import type { ApiArticle, ApiArticlesResponse } from '~/models/api/article'
 
 /**
  * Fetches the article feed (SSR-friendly) and caches the mapped domain
@@ -16,7 +16,16 @@ export async function useArticles() {
   watch(
     data,
     (response) => {
-      if (response) store.setArticles(response.articles.map(mapApiArticleToDomain))
+      if (!response) return
+
+      // Defend against a malformed/unexpected response shape (missing
+      // `articles`, or entries with no `url`, which every domain
+      // article needs for routing and the external link) so a bad
+      // payload degrades to an empty list instead of throwing.
+      const rawArticles = Array.isArray(response.articles) ? response.articles : []
+      const validArticles = rawArticles.filter((item): item is ApiArticle => Boolean(item?.url))
+
+      store.setArticles(validArticles.map(mapApiArticleToDomain))
     },
     { immediate: true },
   )

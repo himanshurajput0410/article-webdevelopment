@@ -4,7 +4,7 @@ withDefaults(
     message?: string
   }>(),
   {
-    message: "Something went wrong. Please try again.",
+    message: 'Something went wrong. Please try again.',
   },
 )
 
