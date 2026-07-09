@@ -17,7 +17,7 @@ defineEmits<{
 const variantClasses: Record<'primary' | 'secondary' | 'accent', string> = {
   primary: 'rounded-md bg-gray-900 text-white hover:bg-gray-700',
   secondary: 'rounded-md border border-gray-300 bg-white text-gray-900 hover:bg-gray-50',
-  accent: 'rounded-full bg-blue-600 text-white hover:bg-blue-700',
+  accent: 'rounded-full bg-accent text-white hover:bg-accent/90',
 }
 </script>
 

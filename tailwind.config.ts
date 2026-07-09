@@ -13,6 +13,7 @@ export default <Partial<Config>>{
     extend: {
       colors: {
         card: '#233D46',
+        accent: '#195A94',
       },
     },
   },

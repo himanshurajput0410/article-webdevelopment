@@ -11,7 +11,7 @@ withDefaults(
 
 <template>
   <div
-    class="flex overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5"
+    class="flex overflow-hidden rounded-2xl shadow-sm  ring-1 ring-black/5"
     :class="variant === 'list' ? 'flex-col sm:flex-row' : 'flex-col'"
     aria-hidden="true"
   >

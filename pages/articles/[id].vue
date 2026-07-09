@@ -23,23 +23,23 @@ useHead(() => ({
         <div class="mb-6 flex items-center justify-between">
           <NuxtLink
             to="/"
-            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            class="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Back to articles"
           >
-            <img src="/icons/arrow-left.png" alt="" class="h-4 w-4">
+            <img src="/icons/arrow-left.png" alt="" class="h-6 w-6">
           </NuxtLink>
 
-          <span class="text-base font-medium text-white">Article</span>
+          <span class="text-xl font-medium text-white">Article</span>
 
           <button
             v-if="article"
             type="button"
-            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            class="flex h-8 w-10 items-center justify-center"
             :aria-label="isSaved ? 'Remove from favorites' : 'Add to favorites'"
             @click="toggleSaved"
           >
-            <img v-if="!isSaved" src="/icons/heart.png" alt="" class="h-4 w-4">
-            <img v-else src="/icons/heart-minus.png" alt="" class="h-4 w-4">
+            <img v-if="!isSaved" src="/icons/heart.png" alt="" class="h-8 w-10">
+            <img v-else src="/icons/heart-minus.png" alt="" class="h-8 w-10">
           </button>
           <div v-else class="h-9 w-9" />
         </div>

@@ -50,7 +50,7 @@ const gridClasses = computed(() =>
 <template>
   <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
     <div class="mb-4 flex items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold text-gray-900">Articles</h1>
+      <h1 class="text-3xl font-bold text-gray-900">Articles</h1>
 
       <div class="flex items-center gap-1">
         <button
@@ -63,9 +63,9 @@ const gridClasses = computed(() =>
             v-if="viewMode === 'list'"
             src="/icons/grid.png"
             alt=""
-            class="h-5 w-5"
+            class="h-10 w-10"
           >
-          <img v-else src="/icons/list.png" alt="" class="h-5 w-5">
+          <img v-else src="/icons/list.png" alt="" class="h-10 w-10">
         </button>
 
         <button
@@ -74,7 +74,7 @@ const gridClasses = computed(() =>
           :aria-label="searchOpen ? 'Close search' : 'Search articles'"
           @click="toggleSearch"
         >
-          <img src="/icons/search.png" alt="" class="h-5 w-5">
+          <img src="/icons/search.png" alt="" class="h-10 w-10">
         </button>
       </div>
     </div>

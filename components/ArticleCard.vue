@@ -19,18 +19,18 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
 <template>
   <NuxtLink
     :to="`/articles/${article.id}`"
-    class="group flex overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    class="group flex overflow-hidden rounded-2xl p-4 shadow-sm bg-card ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
     :class="variant === 'list' ? 'flex-col sm:flex-row' : 'flex-col'"
   >
     <div
-      class="w-full shrink-0 bg-gray-200"
-      :class="variant === 'list' ? 'aspect-[16/10] sm:aspect-auto sm:w-64' : 'aspect-square'"
+      class="w-full shrink-0 bg-gray-200 rounded-lg "
+      :class="variant === 'list' ? 'aspect-[16/10] sm:aspect-auto sm:w-64   h-[194px]' : 'aspect-square h-[85px]'"
     >
       <img
         v-if="showImage"
         :src="article.imageUrl!"
         :alt="article.title"
-        class="h-full w-full object-cover"
+        class="h-full w-full object-cover rounded-lg"
         loading="lazy"
         @error="imageFailed = true"
       >
@@ -47,12 +47,12 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
     </div>
 
     <div
-      class="min-w-0 flex-1 bg-card p-3"
+      class="min-w-0 flex-1 bg-card mt-2"
       :class="variant === 'list' ? 'flex flex-col justify-center gap-3 sm:p-4' : 'space-y-1'"
     >
       <h2
         class="font-semibold text-white group-hover:text-slate-200"
-        :class="variant === 'list' ? 'line-clamp-2 text-base sm:line-clamp-3' : 'line-clamp-2 text-sm'"
+        :class="variant === 'list' ? 'line-clamp-2 text-base sm:line-clamp-3' : 'line-clamp-2 text-base'"
       >
         {{ article.title }}
       </h2>
@@ -64,7 +64,7 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
         </div>
 
         <span
-          class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 py-1 pl-3 pr-1 text-xs font-medium text-white"
+          class="inline-flex h-[50px] shrink-0 items-center gap-2 rounded-lg bg-accent py-2.5 pl-4 pr-4 text-xs font-medium text-white"
           aria-hidden="true"
         >
           Read More
