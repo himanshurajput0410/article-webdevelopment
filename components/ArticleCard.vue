@@ -42,7 +42,7 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
       </div>
     </div>
 
-    <div class="bg-slate-800 p-3" :class="variant === 'list' ? 'space-y-3' : 'space-y-1'">
+    <div class="bg-card p-3" :class="variant === 'list' ? 'space-y-3' : 'space-y-1'">
       <h2
         class="font-semibold text-white group-hover:text-slate-200"
         :class="variant === 'list' ? 'line-clamp-2 text-base' : 'line-clamp-2 text-sm'"
@@ -52,7 +52,7 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
 
       <div v-if="variant === 'list'" class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-1.5 text-xs text-slate-300">
-          <img src="/icons/clock.png" alt="" class="h-4 w-4 shrink-0">
+          <img src="/icons/calendar.png" alt="" class="h-4 w-4 shrink-0">
           <span>{{ formatPublishedDate(article.publishedAt) }}</span>
         </div>
 

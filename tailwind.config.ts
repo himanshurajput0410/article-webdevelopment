@@ -10,7 +10,11 @@ export default <Partial<Config>>{
     './error.vue',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        card: '#233D46',
+      },
+    },
   },
   plugins: [],
 }

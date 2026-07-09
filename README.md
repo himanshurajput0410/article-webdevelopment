@@ -118,20 +118,26 @@ assets/css/      Tailwind entrypoint
   is therefore served by fetching/caching the same list and looking up by the
   derived id, rather than a second request per article.
 - The Figma design link in the brief requires an authenticated session and
-  couldn't be opened programmatically in this environment, so the visual
-  design (spacing, card grid, typography) is my own mobile-first interpretation
-  rather than a pixel match. Happy to adjust against exported screenshots.
+  couldn't be opened programmatically in this environment. The mobile list/grid
+  screens were instead matched against exported screenshots and icon assets
+  (card color `#233D46`, calendar/grid/list/search icons in `public/icons/`);
+  screens not yet screenshotted (article detail) use my own interpretation
+  pending reference images.
+- The feed is loaded in full on first render (SSR) and paginated client-side
+  ("Load More", 8 at a time) rather than requesting pages from the API, since
+  the mock endpoint has no pagination parameters of its own.
 - `urlToImage` is treated as optional and unreliable (missing for ~10% of
   articles, and a few present URLs still 404) — the card/detail views fall
   back to a placeholder rather than trusting the field.
 
 ## What I'd Improve With More Time
 
-- Match the Figma design directly if given exported assets or dev-mode access.
+- Match the remaining screens (article detail) to Figma once those screenshots
+  are available.
 - Add unit tests for the pure utils (`hashToId`, `cleanArticleContent`,
   `mapApiArticleToDomain`) and component tests for the loading/error/empty
   branches, via Vitest + `@vue/test-utils`.
-- Add pagination/virtualization if the feed grows — currently the whole list
-  is rendered at once.
+- Swap client-side "Load More" slicing for real API pagination if the feed
+  gains pagination parameters.
 - Wire up CI (typecheck + lint + build) via GitHub Actions.
 - Deploy to Vercel/Netlify for a live preview link.

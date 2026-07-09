@@ -20,6 +20,20 @@ const filteredArticles = computed(() => {
   return articles.value.filter((article) => article.title.toLowerCase().includes(term))
 })
 
+const PAGE_SIZE = 8
+const visibleCount = ref(PAGE_SIZE)
+
+watch(query, () => {
+  visibleCount.value = PAGE_SIZE
+})
+
+const visibleArticles = computed(() => filteredArticles.value.slice(0, visibleCount.value))
+const hasMore = computed(() => visibleCount.value < filteredArticles.value.length)
+
+function loadMore() {
+  visibleCount.value += PAGE_SIZE
+}
+
 const gridClasses = computed(() =>
   viewMode.value === 'list'
     ? 'grid grid-cols-1 gap-4'
@@ -89,13 +103,19 @@ const gridClasses = computed(() =>
       :message="`Nothing found for &quot;${query}&quot;.`"
     />
 
-    <div v-else :class="gridClasses">
-      <ArticleCard
-        v-for="article in filteredArticles"
-        :key="article.id"
-        :article="article"
-        :variant="viewMode"
-      />
-    </div>
+    <template v-else>
+      <div :class="gridClasses">
+        <ArticleCard
+          v-for="article in visibleArticles"
+          :key="article.id"
+          :article="article"
+          :variant="viewMode"
+        />
+      </div>
+
+      <div v-if="hasMore" class="mt-6 flex justify-center">
+        <UiButton variant="accent" @click="loadMore">Load More</UiButton>
+      </div>
+    </template>
   </div>
 </template>
