@@ -43,7 +43,7 @@ function loadMore() {
 const gridClasses = computed(() =>
   viewMode.value === 'list'
     ? 'grid grid-cols-1 gap-4'
-    : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4',
+    : 'grid grid-cols-2 gap-3 sm:grid-cols-3',
 )
 </script>
 

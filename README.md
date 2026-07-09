@@ -137,6 +137,14 @@ public/icons/    Icon assets exported from the Figma design
   unbounded 79-item list would both read as unfinished, so both are wired up:
   search filters the already-fetched list client-side (no extra requests),
   and pagination reveals 8 articles at a time.
+- **Mobile → desktop adaptation of the list card**: the Figma reference is a
+  vertical card (image on top, dark body below), which is correct on a phone
+  but stretches into one oversized, awkward card if kept full-width on a
+  desktop viewport. From `sm:` up, the list card switches to a horizontal row
+  (thumbnail left, title/date/action right) — same information, laid out to
+  fit the available width — while grid view is capped at 3 columns rather
+  than scaling to 4+, so cards stay a comfortable size instead of shrinking
+  indefinitely on wide screens.
 
 ## Assumptions
 

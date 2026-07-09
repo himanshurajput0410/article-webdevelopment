@@ -19,9 +19,13 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
 <template>
   <NuxtLink
     :to="`/articles/${article.id}`"
-    class="group block overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    class="group flex overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    :class="variant === 'list' ? 'flex-col sm:flex-row' : 'flex-col'"
   >
-    <div :class="variant === 'list' ? 'aspect-[16/10]' : 'aspect-square'" class="w-full bg-gray-200">
+    <div
+      class="w-full shrink-0 bg-gray-200"
+      :class="variant === 'list' ? 'aspect-[16/10] sm:aspect-auto sm:w-64' : 'aspect-square'"
+    >
       <img
         v-if="showImage"
         :src="article.imageUrl!"
@@ -42,10 +46,13 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
       </div>
     </div>
 
-    <div class="bg-card p-3" :class="variant === 'list' ? 'space-y-3' : 'space-y-1'">
+    <div
+      class="min-w-0 flex-1 bg-card p-3"
+      :class="variant === 'list' ? 'flex flex-col justify-center gap-3 sm:p-4' : 'space-y-1'"
+    >
       <h2
         class="font-semibold text-white group-hover:text-slate-200"
-        :class="variant === 'list' ? 'line-clamp-2 text-base' : 'line-clamp-2 text-sm'"
+        :class="variant === 'list' ? 'line-clamp-2 text-base sm:line-clamp-3' : 'line-clamp-2 text-sm'"
       >
         {{ article.title }}
       </h2>
