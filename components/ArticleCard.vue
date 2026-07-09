@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import type { Article } from '~/models/domain/article'
 
-const props = defineProps<{
-  article: Article
-}>()
+const props = withDefaults(
+  defineProps<{
+    article: Article
+    variant?: 'list' | 'grid'
+  }>(),
+  {
+    variant: 'list',
+  },
+)
 
 const imageFailed = ref(false)
 
@@ -13,9 +19,9 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
 <template>
   <NuxtLink
     :to="`/articles/${article.id}`"
-    class="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+    class="group block overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
   >
-    <div class="aspect-video w-full shrink-0 bg-gray-100">
+    <div :class="variant === 'list' ? 'aspect-[16/10]' : 'aspect-square'" class="w-full bg-gray-200">
       <img
         v-if="showImage"
         :src="article.imageUrl!"
@@ -24,8 +30,8 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
         loading="lazy"
         @error="imageFailed = true"
       >
-      <div v-else class="flex h-full w-full items-center justify-center text-gray-300">
-        <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+      <div v-else class="flex h-full w-full items-center justify-center text-gray-400">
+        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -36,19 +42,32 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col gap-2 p-4">
-      <div class="flex items-center justify-between gap-2 text-xs text-gray-500">
-        <span class="truncate font-medium">{{ article.sourceName || 'Unknown source' }}</span>
-        <span class="shrink-0">{{ formatPublishedDate(article.publishedAt) }}</span>
-      </div>
-
-      <h2 class="line-clamp-2 font-semibold text-gray-900 group-hover:text-gray-700">
+    <div class="bg-slate-800 p-3" :class="variant === 'list' ? 'space-y-3' : 'space-y-1'">
+      <h2
+        class="font-semibold text-white group-hover:text-slate-200"
+        :class="variant === 'list' ? 'line-clamp-2 text-base' : 'line-clamp-2 text-sm'"
+      >
         {{ article.title }}
       </h2>
 
-      <p v-if="article.description" class="line-clamp-2 text-sm text-gray-600">
-        {{ article.description }}
-      </p>
+      <div v-if="variant === 'list'" class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 text-xs text-slate-300">
+          <img src="/icons/clock.png" alt="" class="h-4 w-4 shrink-0">
+          <span>{{ formatPublishedDate(article.publishedAt) }}</span>
+        </div>
+
+        <span
+          class="inline-flex shrink-0 items-center gap-2 rounded-full bg-blue-600 py-1 pl-3 pr-1 text-xs font-medium text-white"
+          aria-hidden="true"
+        >
+          Read More
+          <span class="flex h-5 w-5 items-center justify-center rounded-full bg-white text-blue-600">
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </span>
+        </span>
+      </div>
     </div>
   </NuxtLink>
 </template>

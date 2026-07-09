@@ -26,3 +26,6 @@ logs
 
 # Challenge brief (not app source)
 Web Challenge.pdf
+
+# Raw Figma export drops (staging only — cleaned copies live in public/icons)
+/assets/images/
