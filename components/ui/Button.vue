@@ -1,11 +1,11 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    variant?: 'primary' | 'secondary' | 'accent'
+    variant?: 'secondary' | 'accent'
     type?: 'button' | 'submit'
   }>(),
   {
-    variant: 'primary',
+    variant: 'secondary',
     type: 'button',
   },
 )
@@ -14,8 +14,7 @@ defineEmits<{
   click: [MouseEvent]
 }>()
 
-const variantClasses: Record<'primary' | 'secondary' | 'accent', string> = {
-  primary: 'rounded-md bg-gray-900 text-white hover:bg-gray-700',
+const variantClasses: Record<'secondary' | 'accent', string> = {
   secondary: 'rounded-md border border-gray-300 bg-white text-gray-900 hover:bg-gray-50',
   accent: 'rounded-full bg-accent text-white hover:bg-accent/90',
 }

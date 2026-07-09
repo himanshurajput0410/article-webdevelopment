@@ -1,8 +1,5 @@
-/**
- * The article feed has no stable identifier, only a unique `url`. This
- * produces a short, deterministic, URL-safe id from that url so articles
- * are routable (e.g. /articles/:id) without a second network call.
- */
+// The feed has no article id, only a unique url. This turns that url
+// into a short id so articles can have their own route.
 export function hashToId(value: string): string {
   let hash = 5381
 

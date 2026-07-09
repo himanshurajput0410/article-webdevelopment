@@ -10,15 +10,12 @@ function toApiError(error: FetchError | null): ApiError | null {
   }
 }
 
-/**
- * Centralized entry point for all API communication. Wraps Nuxt's native
- * useFetch so every consumer gets the same typed response, the same
- * normalized error shape, and never talks to useFetch directly.
- */
+// The only place in the app that calls useFetch directly, so every
+// request comes back with the same error shape.
 export async function useAPI<T>(url: string, options?: Parameters<typeof useFetch<T>>[1]) {
-  const { data, pending, error, refresh, status } = await useFetch<T>(url, options)
+  const { data, pending, error, refresh } = await useFetch<T>(url, options)
 
   const apiError = computed(() => toApiError(error.value))
 
-  return { data, pending, error: apiError, refresh, status }
+  return { data, pending, error: apiError, refresh }
 }

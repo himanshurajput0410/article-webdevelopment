@@ -1,5 +1,5 @@
 export interface Article {
-  /** Stable, URL-derived identifier used for routing (the API has no numeric id). */
+  /** derived from the url — the API has no id of its own */
   id: string
   title: string
   description: string | null

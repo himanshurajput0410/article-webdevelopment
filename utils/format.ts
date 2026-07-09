@@ -7,7 +7,7 @@ export function formatPublishedDate(value: string | null): string {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
-/** Short relative time (e.g. "10h ago"), falling back to an absolute date past a week old. */
+// e.g. "10h ago" — falls back to a real date once it's over a week old
 export function formatRelativeTime(value: string | null): string {
   if (!value) return 'Date unknown'
 
@@ -29,11 +29,8 @@ export function formatRelativeTime(value: string | null): string {
   return formatPublishedDate(value)
 }
 
-/**
- * The feed truncates content with a "[+123 chars]" marker and, in this
- * mock, appends unrelated filler text after it. Cut at the marker so the
- * UI never renders that inconsistent trailing text.
- */
+// The feed truncates content with a "[+123 chars]" marker, and this mock
+// glues random filler text on after it. Cut it off at the marker.
 export function cleanArticleContent(content: string | null): string | null {
   if (!content) return null
 

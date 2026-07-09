@@ -1,10 +1,7 @@
 import type { ApiArticle, ApiArticlesResponse } from '~/models/api/article'
 
-/**
- * Fetches the article feed (SSR-friendly) and caches the mapped domain
- * list in the Pinia store, so the detail view can reuse it instead of
- * issuing a second request.
- */
+// Fetches the feed and puts the mapped list in the store, so the detail
+// page can reuse it instead of fetching again.
 export async function useArticles() {
   const config = useRuntimeConfig()
   const store = useArticlesStore()
@@ -18,10 +15,8 @@ export async function useArticles() {
     (response) => {
       if (!response) return
 
-      // Defend against a malformed/unexpected response shape (missing
-      // `articles`, or entries with no `url`, which every domain
-      // article needs for routing and the external link) so a bad
-      // payload degrades to an empty list instead of throwing.
+      // the feed can come back with articles missing, or without a url —
+      // skip those instead of letting the app crash on a bad response
       const rawArticles = Array.isArray(response.articles) ? response.articles : []
       const validArticles = rawArticles.filter((item): item is ApiArticle => Boolean(item?.url))
 

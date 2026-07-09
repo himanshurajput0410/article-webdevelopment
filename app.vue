@@ -1,10 +1,9 @@
 <script setup lang="ts">
 const FAVORITES_STORAGE_KEY = 'favorite-article-ids'
 
-// Read localStorage only in onMounted: Vue guarantees this fires strictly
-// after this component's subtree (including Suspense-wrapped async pages)
-// finishes hydrating, so the first client render still matches the
-// server render and no hydration mismatch is thrown.
+// Wait until after mount to touch localStorage. Doing it any earlier
+// causes a hydration mismatch, since the server has no localStorage to
+// read from.
 onMounted(() => {
   const favorites = useFavoritesStore()
 

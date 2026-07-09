@@ -1,180 +1,96 @@
-# Articles — Web Developer Challenge
+# Articles
 
-An SSR Nuxt 3 application that lists articles from a mock news API and provides a
-detail view for each, built around real-world data problems: missing fields,
-inconsistent content, loading/empty/error states, and no stable article id.
+A Nuxt 3 app that pulls articles from a mock news API, shows them as a list, and lets you open each one in detail. Built for the Web Developer Challenge brief: SSR, strict TypeScript, Pinia, native `useFetch`, Tailwind, no `any` anywhere.
 
-## Tech Stack
-
-- [Nuxt 3](https://nuxt.com/) (SSR)
-- TypeScript, strict mode (`any` is disallowed by both `tsconfig` and an ESLint rule)
-- Vue 3 Composition API (`<script setup>`)
-- [Pinia](https://pinia.vuejs.org/) for the shared article cache and the saved-articles list
-- Native `useFetch`, wrapped in a centralized composable — never called directly from a page/component
-- Tailwind CSS (`@nuxtjs/tailwindcss`)
-- ESLint (`@nuxt/eslint`)
-
-## Project Setup
+## Running it
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm run build       # production build (SSR)
-npm run preview     # preview the production build locally
+npm run build
+npm run preview
 npm run typecheck
 npm run lint
 ```
 
-No environment variables are required — the API endpoint defaults to the one
-provided in the brief. To point at a different feed, set:
+No `.env` needed just to run it. The API URL is already set to the one from the brief. If you ever want to point it at something else:
 
 ```bash
 NUXT_PUBLIC_ARTICLES_API_URL=https://your-endpoint
 ```
 
-## Project Structure
+**Please check it on both a phone-sized viewport and a normal desktop window.** The layout was built mobile-first from the Figma screenshots, then adapted for wider screens. List cards switch from a stacked card to a left-image/right-text row past the `sm` breakpoint, and grid view caps at 3 columns. Worth seeing both to notice the difference.
+
+## How it's organised
 
 ```
 components/
-  ui/            Pure, feature-agnostic UI primitives (Button, Spinner, SkeletonLine)
-  common/        Reusable app-agnostic composites (EmptyState, ErrorState)
-  ArticleCard.vue, ArticleSkeletonCard.vue   Feature-specific presentational components
+  ui/            small generic pieces (Button, SkeletonLine)
+  common/        EmptyState, ErrorState
+  ArticleCard.vue, ArticleSkeletonCard.vue   the actual article card + its loading placeholder
 composables/
-  useAPI.ts      Centralized API communication — the only place useFetch is called
-  useArticles.ts Fetches the article feed, maps + caches it in the Pinia store
-  useArticle.ts  Looks up a single article by id, reusing useArticles()
-layouts/         App shell (default.vue)
+  useAPI.ts      wraps useFetch, this is the only file that calls it
+  useArticles.ts fetches the list, maps it, puts it in the store
+  useArticle.ts  finds one article by id (built on top of useArticles)
+layouts/         default.vue, just the page shell
 models/
-  api/           Raw API response shapes (ApiArticle, ApiArticlesResponse)
-  domain/        Mapped, UI-friendly shape (Article)
+  api/           what the API actually returns
+  domain/        what the UI actually uses
 pages/
-  index.vue           Article list
-  articles/[id].vue    Article detail
+  index.vue           the list
+  articles/[id].vue    the detail page
 stores/
-  articles.ts    Pinia store — single source of truth for the fetched article list
-  favorites.ts   Pinia store — ids of saved/bookmarked articles
-types/           Shared cross-cutting types (ApiError)
-utils/           Pure helpers — id derivation, date/relative-time formatting, content cleanup, raw→domain mapping
-assets/css/      Tailwind entrypoint
-public/icons/    Icon assets exported from the Figma design
+  articles.ts    the fetched articles, shared between list and detail
+  favorites.ts   ids of articles you've saved
+types/           small shared types (ApiError)
+utils/           id generation, date formatting, content cleanup, the raw-to-domain mapper
+public/icons/    icons exported from the Figma file
 ```
 
-## API & Composable Strategy
+## Why it's structured this way
 
-- **`useAPI<T>()`** is the single choke point for HTTP calls. It wraps `useFetch`,
-  and normalizes whatever error comes back into a typed `ApiError` (`{ message, statusCode }`)
-  so nothing downstream ever touches a raw `FetchError`. No page or component calls
-  `useFetch` directly.
-- **`useArticles()`** is the feature composable for the list: it calls `useAPI`
-  with a stable `key: 'articles-list'`, maps each raw `ApiArticle` to the domain
-  `Article` shape via `mapApiArticleToDomain`, and writes the result into the
-  Pinia store. It returns `{ articles, pending, error, refresh }` sourced from
-  the store, so every consumer sees the same cached list.
-- **`useArticle(id)`** builds on `useArticles()` rather than fetching independently,
-  then looks the id up in the store via a getter. Because it reuses the same
-  fetch key, navigating list → detail does not trigger a second network
-  request — Nuxt's payload/asyncData cache and the Pinia store both dedupe it.
-  A direct load of `/articles/:id` (no prior list visit) still fetches over SSR
-  through the same path, so the detail page works standalone too.
-- Both composables are `async` and are `await`-ed in `<script setup>`, which is
-  what makes Nuxt block SSR until the data resolves — the page never ships
-  without its data on first render.
+Nothing calls `useFetch` directly except `useAPI`. Every other composable goes through it, so there's one place that turns a failed request into a normal `{ message, statusCode }` object instead of some raw error nobody's checked the shape of.
 
-## Typing & Modeling Decisions
+`useArticles` fetches the feed, maps each raw article into the shape the UI actually wants, and stores it in Pinia. `useArticle(id)` doesn't fetch on its own. It just calls `useArticles` and looks the id up in the store. Going from the list to a detail page doesn't trigger a second request because Nuxt already has the data cached under the same key. Opening a detail page directly still works fine too, since it just fetches fresh over SSR.
 
-- `any` is forbidden everywhere: `strict: true` in `nuxt.config.ts`/`tsconfig.json`
-  (plus `noUncheckedIndexedAccess`) and `@typescript-eslint/no-explicit-any: 'error'`
-  in `eslint.config.mjs`.
-- **`models/api/article.ts`** mirrors the API exactly, including the parts that
-  are unreliable in practice — `author`, `description`, `urlToImage`, and
-  `source.name` are all `string | null` because the live feed omits them on a
-  meaningful fraction of articles (checked against the real payload: ~10% of
-  entries are missing an image, ~10% are missing an author).
-- **`models/domain/article.ts`** is what the UI actually renders: every field
-  has a defined fallback applied once, in `utils/article.ts`, instead of every
-  template needing its own `?? 'Unknown'` logic.
-- **There is no article id in the API.** Each article does have a unique `url`,
-  so `utils/id.ts` derives a short, deterministic id from it (`hashToId`) purely
-  so articles are routable at `/articles/:id` without a second endpoint.
+Both of these are `async` functions, `await`-ed in the page's `<script setup>`. That's what makes Nuxt wait for the data before it renders, so you don't get a flash of nothing on first load.
 
-## Error Handling Approach
+## Typing
 
-- `useAPI` normalizes any fetch failure into `{ message, statusCode }` — pages
-  branch on `pending` / `error` / not-found / empty explicitly, so each state
-  has its own visual treatment (`ArticleSkeletonCard`, `CommonErrorState` with a
-  retry action, `CommonEmptyState`) instead of one generic fallback.
-- The list page and detail page distinguish **three** different "nothing to
-  show" cases that are easy to conflate: a genuinely empty feed, a fetch error,
-  and (detail page only) a valid response where the requested id simply isn't
-  in it — each gets its own message.
-- The feed's `content` field is truncated by the API with a `[+N chars]`
-  marker; this particular mock appends unrelated filler text after that marker.
-  `utils/format.ts#cleanArticleContent` cuts the string at the marker so the
-  UI never displays that inconsistent trailing text.
-- A root `error.vue` catches anything unhandled (e.g. a thrown Nitro error)
-  so the app never shows a blank screen.
-- `useArticles()` defends against a malformed API payload rather than trusting
-  its shape: if `articles` isn't an array (or is missing) it falls back to an
-  empty list, and any entry without a `url` (the one field every domain
-  article needs, for routing and the external link) is dropped before
-  mapping — a bad response degrades to the empty state instead of throwing.
+Strict mode is on everywhere. `any` is banned both by `tsconfig` and by an ESLint rule, so it's not just something someone could ignore.
 
-## State Management & UX Additions
+The raw API model (`models/api/article.ts`) matches what the feed actually sends, including the annoying parts. No `author`, no `description`, no image, on a good chunk of articles. I checked the real payload and roughly 1 in 10 articles is missing an image or an author. The domain model (`models/domain/article.ts`) is what components actually render, with fallbacks already applied once in `utils/article.ts` instead of every template writing its own `?? 'Unknown'`.
 
-- **Article cache (`stores/articles.ts`)** is genuinely shared state: both the
-  list and detail pages read it, so it belongs in Pinia rather than
-  component-local state.
-- **Favorites (`stores/favorites.ts`)** — the detail screen's heart button
-  saves/unsaves an article, persisted to `localStorage` and rehydrated in
-  `app.vue`'s `onMounted` (deliberately *after* mount, so the client's first
-  render still matches the server-rendered HTML and Vue never throws a
-  hydration mismatch). A plain component `ref` would reset every time the
-  user navigated away and back, which is exactly the kind of case Pinia is
-  for — hence it's a store, not local state.
-- **Title search and "Load More" pagination** on the list page aren't in the
-  brief's functional requirements, but the design includes a search icon and
-  asked that the list not render everything at once — an inert icon or an
-  unbounded 79-item list would both read as unfinished, so both are wired up:
-  search filters the already-fetched list client-side (no extra requests),
-  and pagination reveals 8 articles at a time.
-- **Mobile → desktop adaptation of the list card**: the Figma reference is a
-  vertical card (image on top, dark body below), which is correct on a phone
-  but stretches into one oversized, awkward card if kept full-width on a
-  desktop viewport. From `sm:` up, the list card switches to a horizontal row
-  (thumbnail left, title/date/action right) — same information, laid out to
-  fit the available width — while grid view is capped at 3 columns rather
-  than scaling to 4+, so cards stay a comfortable size instead of shrinking
-  indefinitely on wide screens.
+There's also no article id in the feed at all, just a `url`, which happens to be unique. `utils/id.ts` turns that url into a short id so articles can have their own route.
 
-## Assumptions
+## Handling things going wrong
 
-- The API has no per-article endpoint — only the full list. The detail route
-  is therefore served by fetching/caching the same list and looking up by the
-  derived id, rather than a second request per article.
-- The Figma design link in the brief requires an authenticated session and
-  couldn't be opened programmatically in this environment. Both the article
-  list (list/grid views) and the article detail screen were instead matched
-  against exported mobile screenshots and icon assets (card color `#233D46`,
-  and the calendar/grid/list/search/arrow/heart icons in `public/icons/`).
-  The desktop/tablet layout is my own responsive adaptation of that mobile
-  design, per the brief.
-- The "Article" label in the detail header and the like/save action are a
-  static page label and a local bookmarking feature respectively — the API
-  has no per-article title for the nav bar or a favorites endpoint, so
-  neither is backed by the API.
-- The feed is loaded in full on first render (SSR) and paginated client-side
-  ("Load More", 8 at a time) rather than requesting pages from the API, since
-  the mock endpoint has no pagination parameters of its own.
-- `urlToImage` is treated as optional and unreliable (missing for ~10% of
-  articles, and a few present URLs still 404) — the card/detail views fall
-  back to a placeholder rather than trusting the field.
+Each composable returns `pending`, `error`, and the data, and every page branches on those explicitly. Loading, error, empty, and "not found" all look different instead of collapsing into one generic message. There's a retry button on the error state, and a root `error.vue` catches anything truly unexpected.
 
-## What I'd Improve With More Time
+Two specific things worth knowing about:
 
-- Add unit tests for the pure utils (`hashToId`, `cleanArticleContent`,
-  `formatRelativeTime`, `mapApiArticleToDomain`) and component tests for the
-  loading/error/empty branches, via Vitest + `@vue/test-utils`.
-- Swap client-side "Load More" slicing for real API pagination if the feed
-  gains pagination parameters.
-- Wire up CI (typecheck + lint + build) via GitHub Actions.
-- Deploy to Vercel/Netlify for a live preview link.
+The feed truncates `content` with a `[+123 chars]` marker, and in this particular mock there's random filler text glued on after that marker. It gets cut off before display.
+
+If the API ever came back with `articles` missing, not an array, or with an entry that has no `url`, the app used to just crash trying to map over it. That's fixed now. A bad response just shows the empty state instead of breaking the page.
+
+## Pinia: what's actually in it and why
+
+The article list is shared state by definition, since both the list and detail pages need it, so that's an easy call. The favorites store is a bit more interesting. It's a heart button on the detail page that saves an article, backed by `localStorage`. It has to be a store rather than a local ref, otherwise it'd forget itself every time you left the page and came back. The localStorage read happens in `app.vue`'s `onMounted` on purpose. Reading it any earlier caused a real hydration mismatch (Vue complaining that server and client rendered different things), because the server has no access to localStorage at all.
+
+## A couple of things I added that weren't strictly asked for
+
+The Figma design has a search icon, and asked that the list not just dump all 79 articles on the page. So there's a working title search, and the list loads 8 at a time with a "Load More" button instead of everything at once.
+
+## Assumptions I made
+
+- There's no per-article endpoint, only the full list. The detail page reuses the cached list instead of hitting a second URL.
+- The Figma link needs a login and wouldn't open for me directly, so I matched the mobile screens from the screenshots and icon exports you shared, then adapted the layout for desktop myself.
+- The "Article" label in the detail header and the save/heart button aren't backed by any API data. They're just UI, since the feed has no favorites concept.
+- Pagination is client-side ("Load More") since the mock API doesn't support page parameters.
+
+## What I'd do with more time
+
+- Unit tests for the small pure functions (id generation, content cleanup, date formatting, the mapper) and a few component tests for the loading/error/empty states.
+- Real API pagination instead of client-side slicing, if the feed ever supports it.
+- A GitHub Actions workflow running typecheck/lint/build on every push.
+- Deploy it somewhere (Vercel/Netlify) so there's a live link, not just a repo.
