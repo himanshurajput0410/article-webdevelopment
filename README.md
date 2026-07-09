@@ -1,64 +1,137 @@
-# Web Dev Challenge
+# Articles — Web Developer Challenge
 
-> Scaffold in progress. This README will be expanded once the full challenge brief (feature requirements) is added to the repo.
+An SSR Nuxt 3 application that lists articles from a mock news API and provides a
+detail view for each, built around real-world data problems: missing fields,
+inconsistent content, loading/empty/error states, and no stable article id.
 
 ## Tech Stack
 
-- [Nuxt 3](https://nuxt.com/) (SSR enabled)
-- TypeScript (strict mode)
+- [Nuxt 3](https://nuxt.com/) (SSR)
+- TypeScript, strict mode (`any` is disallowed by both `tsconfig` and an ESLint rule)
 - Vue 3 Composition API (`<script setup>`)
-- [Pinia](https://pinia.vuejs.org/) for shared client state
-- Native `useFetch` for data fetching, wrapped in typed composables
-- [Tailwind CSS](https://tailwindcss.com/) via `@nuxtjs/tailwindcss`
+- [Pinia](https://pinia.vuejs.org/) for the shared article cache
+- Native `useFetch`, wrapped in a centralized composable — never called directly from a page/component
+- Tailwind CSS (`@nuxtjs/tailwindcss`)
 - ESLint (`@nuxt/eslint`)
 
 ## Project Setup
 
 ```bash
 npm install
-npm run dev      # start dev server at http://localhost:3000
-npm run build    # production build (SSR)
-npm run preview  # preview the production build locally
+npm run dev        # http://localhost:3000
+npm run build       # production build (SSR)
+npm run preview     # preview the production build locally
 npm run typecheck
 npm run lint
+```
+
+No environment variables are required — the API endpoint defaults to the one
+provided in the brief. To point at a different feed, set:
+
+```bash
+NUXT_PUBLIC_ARTICLES_API_URL=https://your-endpoint
 ```
 
 ## Project Structure
 
 ```
-components/    Reusable presentational components (e.g. PostCard.vue)
-composables/   Typed wrappers around useFetch and other reusable logic
-layouts/       App-wide layouts (default.vue)
-pages/         File-based routes
-server/api/    Nitro server routes (mock backend used during development)
-stores/        Pinia stores for cross-component client state
-types/         Shared TypeScript interfaces/models
-assets/css/    Tailwind entrypoint
+components/
+  ui/            Pure, feature-agnostic UI primitives (Button, Spinner, SkeletonLine)
+  common/        Reusable app-agnostic composites (EmptyState, ErrorState)
+  ArticleCard.vue, ArticleSkeletonCard.vue   Feature-specific presentational components
+composables/
+  useAPI.ts      Centralized API communication — the only place useFetch is called
+  useArticles.ts Fetches the article feed, maps + caches it in the Pinia store
+  useArticle.ts  Looks up a single article by id, reusing useArticles()
+layouts/         App shell (default.vue)
+models/
+  api/           Raw API response shapes (ApiArticle, ApiArticlesResponse)
+  domain/        Mapped, UI-friendly shape (Article)
+pages/
+  index.vue           Article list
+  articles/[id].vue    Article detail
+stores/
+  articles.ts    Pinia store — single source of truth for the fetched article list
+types/           Shared cross-cutting types (ApiError)
+utils/           Pure helpers — id derivation, date formatting, content cleanup, raw→domain mapping
+assets/css/      Tailwind entrypoint
 ```
 
 ## API & Composable Strategy
 
-- All HTTP calls go through `composables/useApi.ts`, a thin generic wrapper around Nuxt's native `useFetch` that centralizes the API base URL (via `runtimeConfig.public.apiBase`) and forwards `UseFetchOptions`.
-- Feature-specific composables (e.g. `usePosts.ts`) call `useApi<T>()` with the concrete response type, so components never call `useFetch` directly and never see untyped responses.
-- During development, `server/api/*` provides mock Nitro endpoints so the frontend can be built against a realistic async/SSR data flow before a real backend is wired in. Swap `apiBase` (or the composable's URL) to point at a real API without touching page code.
+- **`useAPI<T>()`** is the single choke point for HTTP calls. It wraps `useFetch`,
+  and normalizes whatever error comes back into a typed `ApiError` (`{ message, statusCode }`)
+  so nothing downstream ever touches a raw `FetchError`. No page or component calls
+  `useFetch` directly.
+- **`useArticles()`** is the feature composable for the list: it calls `useAPI`
+  with a stable `key: 'articles-list'`, maps each raw `ApiArticle` to the domain
+  `Article` shape via `mapApiArticleToDomain`, and writes the result into the
+  Pinia store. It returns `{ articles, pending, error, refresh }` sourced from
+  the store, so every consumer sees the same cached list.
+- **`useArticle(id)`** builds on `useArticles()` rather than fetching independently,
+  then looks the id up in the store via a getter. Because it reuses the same
+  fetch key, navigating list → detail does not trigger a second network
+  request — Nuxt's payload/asyncData cache and the Pinia store both dedupe it.
+  A direct load of `/articles/:id` (no prior list visit) still fetches over SSR
+  through the same path, so the detail page works standalone too.
+- Both composables are `async` and are `await`-ed in `<script setup>`, which is
+  what makes Nuxt block SSR until the data resolves — the page never ships
+  without its data on first render.
 
-## Typing & Modelling Decisions
+## Typing & Modeling Decisions
 
-- TypeScript strict mode is enabled (`nuxt.config.ts` + `tsconfig.json`), plus `noUncheckedIndexedAccess` for safer array/object access.
-- Domain shapes live in `types/*.ts` and are imported wherever a response is typed, keeping a single source of truth for each model.
+- `any` is forbidden everywhere: `strict: true` in `nuxt.config.ts`/`tsconfig.json`
+  (plus `noUncheckedIndexedAccess`) and `@typescript-eslint/no-explicit-any: 'error'`
+  in `eslint.config.mjs`.
+- **`models/api/article.ts`** mirrors the API exactly, including the parts that
+  are unreliable in practice — `author`, `description`, `urlToImage`, and
+  `source.name` are all `string | null` because the live feed omits them on a
+  meaningful fraction of articles (checked against the real payload: ~10% of
+  entries are missing an image, ~10% are missing an author).
+- **`models/domain/article.ts`** is what the UI actually renders: every field
+  has a defined fallback applied once, in `utils/article.ts`, instead of every
+  template needing its own `?? 'Unknown'` logic.
+- **There is no article id in the API.** Each article does have a unique `url`,
+  so `utils/id.ts` derives a short, deterministic id from it (`hashToId`) purely
+  so articles are routable at `/articles/:id` without a second endpoint.
 
 ## Error Handling Approach
 
-- `useFetch`-based composables return `{ data, pending, error, refresh }`; pages branch on `pending` / `error` / empty-data explicitly rather than relying on try/catch, keeping loading, error and empty states visually distinct (see `pages/index.vue`).
-- Server routes throw typed `createError()` errors with proper status codes; unhandled errors surface through Nuxt's `error.vue` page.
+- `useAPI` normalizes any fetch failure into `{ message, statusCode }` — pages
+  branch on `pending` / `error` / not-found / empty explicitly, so each state
+  has its own visual treatment (`ArticleSkeletonCard`, `CommonErrorState` with a
+  retry action, `CommonEmptyState`) instead of one generic fallback.
+- The list page and detail page distinguish **three** different "nothing to
+  show" cases that are easy to conflate: a genuinely empty feed, a fetch error,
+  and (detail page only) a valid response where the requested id simply isn't
+  in it — each gets its own message.
+- The feed's `content` field is truncated by the API with a `[+N chars]`
+  marker; this particular mock appends unrelated filler text after that marker.
+  `utils/format.ts#cleanArticleContent` cuts the string at the marker so the
+  UI never displays that inconsistent trailing text.
+- A root `error.vue` catches anything unhandled (e.g. a thrown Nitro error)
+  so the app never shows a blank screen.
 
 ## Assumptions
 
-- No real backend/API was provided yet; `server/api/posts.ts` is a placeholder mock used to validate the SSR + `useFetch` + composable pipeline end to end.
-- This document and the app structure will be revised once the actual challenge requirements document is added.
+- The API has no per-article endpoint — only the full list. The detail route
+  is therefore served by fetching/caching the same list and looking up by the
+  derived id, rather than a second request per article.
+- The Figma design link in the brief requires an authenticated session and
+  couldn't be opened programmatically in this environment, so the visual
+  design (spacing, card grid, typography) is my own mobile-first interpretation
+  rather than a pixel match. Happy to adjust against exported screenshots.
+- `urlToImage` is treated as optional and unreliable (missing for ~10% of
+  articles, and a few present URLs still 404) — the card/detail views fall
+  back to a placeholder rather than trusting the field.
 
-## Improvements With More Time
+## What I'd Improve With More Time
 
-- Replace mock Nitro endpoints with the real API once available.
-- Add unit/component tests (Vitest + @vue/test-utils) and e2e coverage.
-- Add CI (lint + typecheck + build) via GitHub Actions.
+- Match the Figma design directly if given exported assets or dev-mode access.
+- Add unit tests for the pure utils (`hashToId`, `cleanArticleContent`,
+  `mapApiArticleToDomain`) and component tests for the loading/error/empty
+  branches, via Vitest + `@vue/test-utils`.
+- Add pagination/virtualization if the feed grows — currently the whole list
+  is rendered at once.
+- Wire up CI (typecheck + lint + build) via GitHub Actions.
+- Deploy to Vercel/Netlify for a live preview link.

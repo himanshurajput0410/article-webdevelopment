@@ -16,14 +16,16 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Web Dev Challenge',
+      title: 'Articles',
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
     },
   },
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      articlesApiUrl:
+        process.env.NUXT_PUBLIC_ARTICLES_API_URL ||
+        'https://mocki.io/v1/38c57ea8-5688-4a36-9629-8c9616754eb8',
     },
   },
 })
