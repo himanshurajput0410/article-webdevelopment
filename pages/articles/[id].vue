@@ -15,6 +15,9 @@ if (!pending.value && !article.value && !error.value) {
 const favorites = useFavoritesStore()
 const isSaved = computed(() => (article.value ? favorites.isSaved(article.value.id) : false))
 
+const imageFailed = ref(false)
+const showImage = computed(() => Boolean(article.value?.imageUrl) && !imageFailed.value)
+
 function toggleSaved() {
   if (article.value) favorites.toggle(article.value.id)
 }
@@ -83,12 +86,28 @@ useHead(() => ({
     <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
       <div class="-mt-10">
         <div v-if="pending" class="aspect-[16/10] w-full animate-pulse rounded-xl bg-gray-200 shadow-lg" />
+
         <img
-          v-else-if="article?.imageUrl"
-          :src="article.imageUrl"
-          :alt="article.title"
+          v-else-if="showImage"
+          :src="article?.imageUrl ?? undefined"
+          :alt="article?.title ?? ''"
           class="aspect-[16/10] w-full rounded-xl object-cover shadow-lg"
+          @error="imageFailed = true"
         >
+
+        <div
+          v-else-if="article"
+          class="flex aspect-[16/10] w-full items-center justify-center rounded-xl bg-gray-200 text-gray-400 shadow-lg"
+        >
+          <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 8h.01M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"
+            />
+          </svg>
+        </div>
       </div>
 
       <div class="py-6">
