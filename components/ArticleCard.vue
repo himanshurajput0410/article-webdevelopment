@@ -19,7 +19,8 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
 <template>
   <NuxtLink
     :to="`/articles/${article.id}`"
-    class="group flex overflow-hidden rounded-2xl p-4 shadow-sm bg-card ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    :aria-label="`Read article: ${article.title}`"
+    class="group flex overflow-hidden rounded-2xl p-4 shadow-sm bg-card ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 active:scale-[0.98]"
     :class="variant === 'list' ? 'flex-col sm:flex-row' : 'flex-col'"
   >
     <div
@@ -51,7 +52,7 @@ const showImage = computed(() => Boolean(props.article.imageUrl) && !imageFailed
       :class="variant === 'list' ? 'flex flex-col justify-center gap-3 sm:p-4' : 'space-y-1'"
     >
       <h2
-        class="font-semibold text-white group-hover:text-slate-200"
+        class="break-words font-semibold text-white group-hover:text-slate-200"
         :class="variant === 'list' ? 'line-clamp-2 text-base sm:line-clamp-3' : 'line-clamp-2 text-base'"
       >
         {{ article.title }}

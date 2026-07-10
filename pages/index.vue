@@ -1,10 +1,22 @@
 <script setup lang="ts">
 const { articles, pending, error, refresh } = await useArticles()
 
-const viewMode = ref<'list' | 'grid'>('list')
-const searchOpen = ref(false)
+// Cookie (not localStorage) so the preference survives a refresh *and*
+// renders correctly on the very first SSR paint, no post-mount flash.
+const viewMode = useCookie<'list' | 'grid'>('view-mode', {
+  default: () => 'list',
+  maxAge: 60 * 60 * 24 * 365,
+})
+// useState, not ref: this page remounts every time you come back from an
+// article (router.back() tears down and re-runs this script), so a plain
+// ref would forget the search term and how much of the list was loaded.
+// That breaks scroll restoration too — the browser scrolls back to the
+// right pixel offset, but if the list re-rendered with only the first
+// page again, that offset lands on blank space instead of your article.
+const searchOpen = useState('articles-search-open', () => false)
 const searchInput = ref<HTMLInputElement | null>(null)
-const query = ref('')
+const searchToggleButton = ref<HTMLButtonElement | null>(null)
+const query = useState('articles-search-query', () => '')
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'grid' : 'list'
@@ -14,6 +26,10 @@ async function toggleSearch() {
   searchOpen.value = !searchOpen.value
   if (!searchOpen.value) {
     query.value = ''
+    // The input is about to disappear (v-if). If it still has focus,
+    // that focus would otherwise fall back to <body> with no warning
+    // to a keyboard/screen-reader user, so send it somewhere sensible.
+    searchToggleButton.value?.focus()
     return
   }
   await nextTick()
@@ -27,7 +43,7 @@ const filteredArticles = computed(() => {
 })
 
 const PAGE_SIZE = 8
-const visibleCount = ref(PAGE_SIZE)
+const visibleCount = useState('articles-visible-count', () => PAGE_SIZE)
 
 watch(query, () => {
   visibleCount.value = PAGE_SIZE
@@ -43,7 +59,7 @@ function loadMore() {
 const gridClasses = computed(() =>
   viewMode.value === 'list'
     ? 'grid grid-cols-1 gap-4'
-    : 'grid grid-cols-2 gap-3 sm:grid-cols-3',
+    : 'grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4',
 )
 </script>
 
@@ -52,10 +68,10 @@ const gridClasses = computed(() =>
     <div class="mb-4 flex items-center justify-between gap-3">
       <h1 class="text-3xl font-bold text-gray-900">Articles</h1>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-2">
         <button
           type="button"
-          class="rounded-full p-2 text-gray-700 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          class="rounded-full p-2 text-gray-700 transition-[background-color,transform] hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 active:scale-90"
           :aria-label="viewMode === 'list' ? 'Switch to grid view' : 'Switch to list view'"
           @click="toggleViewMode"
         >
@@ -69,8 +85,9 @@ const gridClasses = computed(() =>
         </button>
 
         <button
+          ref="searchToggleButton"
           type="button"
-          class="rounded-full p-2 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          class="rounded-full p-2 transition-[background-color,transform] hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 active:scale-90"
           :aria-label="searchOpen ? 'Close search' : 'Search articles'"
           @click="toggleSearch"
         >
@@ -87,15 +104,17 @@ const gridClasses = computed(() =>
       aria-label="Search articles by title"
       placeholder="Search articles by title"
       class="mb-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+      @keydown.escape="toggleSearch"
     >
 
-    <div v-if="pending && articles.length === 0" :class="gridClasses">
+    <div v-if="pending && !error && articles.length === 0" :class="gridClasses">
       <ArticleSkeletonCard v-for="n in 6" :key="n" :variant="viewMode" />
     </div>
 
     <CommonErrorState
       v-else-if="error"
       :message="error.message"
+      :retrying="pending"
       @retry="refresh()"
     />
 

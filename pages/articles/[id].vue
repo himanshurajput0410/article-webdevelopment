@@ -1,14 +1,34 @@
 <script setup lang="ts">
 const route = useRoute()
+const router = useRouter()
 const id = route.params.id as string
 
 const { article, pending, error, refresh } = await useArticle(id)
+
+// The inline "Article not found" state below already handles this without
+// a jarring full-page swap to error.vue, but the response still needs to
+// actually say 404 — otherwise it's a soft 404 (200 OK on a missing page).
+if (!pending.value && !article.value && !error.value) {
+  setResponseStatus(404)
+}
 
 const favorites = useFavoritesStore()
 const isSaved = computed(() => (article.value ? favorites.isSaved(article.value.id) : false))
 
 function toggleSaved() {
   if (article.value) favorites.toggle(article.value.id)
+}
+
+// A push to "/" is a brand new forward navigation, so vue-router has no
+// savedPosition for it and always scrolls to top. Going back() instead
+// triggers the same popstate path as the browser's own back button,
+// which is what actually restores the list's scroll position.
+function goBack() {
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.push('/')
+  }
 }
 
 useHead(() => ({
@@ -21,20 +41,21 @@ useHead(() => ({
     <div class="bg-card">
       <div class="mx-auto max-w-3xl px-4 pb-14 pt-4 sm:px-6 lg:px-8">
         <div class="mb-6 flex items-center justify-between">
-          <NuxtLink
-            to="/"
-            class="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          <button
+            type="button"
+            class="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 transition-transform hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-90"
             aria-label="Back to articles"
+            @click="goBack"
           >
             <img src="/icons/arrow-left.png" alt="" class="h-6 w-6">
-          </NuxtLink>
+          </button>
 
           <span class="text-xl font-medium text-white">Article</span>
 
           <button
             v-if="article"
             type="button"
-            class="flex h-8 w-10 items-center justify-center"
+            class="flex h-8 w-10 items-center justify-center transition-transform active:scale-90"
             :aria-label="isSaved ? 'Remove from favorites' : 'Add to favorites'"
             @click="toggleSaved"
           >
@@ -50,7 +71,7 @@ useHead(() => ({
         </template>
 
         <template v-else-if="article">
-          <h1 class="text-2xl font-bold leading-snug text-white">{{ article.title }}</h1>
+          <h1 class="break-words text-2xl font-bold leading-snug text-white">{{ article.title }}</h1>
           <div class="mt-3 flex items-center gap-1.5 text-sm text-white/70">
             <img src="/icons/clock.png" alt="" class="h-4 w-4">
             <span>{{ formatRelativeTime(article.publishedAt) }}</span>
@@ -71,7 +92,7 @@ useHead(() => ({
       </div>
 
       <div class="py-6">
-        <CommonErrorState v-if="error" :message="error.message" @retry="refresh()" />
+        <CommonErrorState v-if="error" :message="error.message" :retrying="pending" @retry="refresh()" />
 
         <CommonEmptyState
           v-else-if="!pending && !article"
