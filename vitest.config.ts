@@ -5,6 +5,13 @@ export default defineVitestConfig({
     environment: 'node',
     hookTimeout: 60000,
     testTimeout: 60000,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{vite,vitest}.config.*',
+      'tests/e2e/**',
+    ],
     coverage: {
       provider: 'v8',
       include: ['utils/**', 'models/**', 'infrastructure/**', 'usecases/**'],
