@@ -16,6 +16,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@lucide/vue": "^1.24.0",
     "@pinia/nuxt": "^0.10.1",
     "nuxt": "^3.21.8",
     "pinia": "^3.0.1",

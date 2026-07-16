@@ -1,3 +1,4 @@
+import type { FetchOptions } from 'ofetch'
 import { CancelledError, NotFoundError, RepositoryError, UnauthorizedError, ValidationError } from '~/models/domain/errors'
 
 interface TransportError {
@@ -7,13 +8,16 @@ interface TransportError {
   data?: { message?: string }
 }
 
-export type Fetcher = typeof $fetch
-export type NitroRequestOptions = Parameters<Fetcher>[1]
+// Deliberately typed against plain string URLs + ofetch's own FetchOptions,
+// not `typeof $fetch` - Nitro's typed-route inference for that global can hit
+// TypeScript's recursion limit ("excessive stack depth") once enough dynamic
+// API routes exist, and we only ever call these with plain runtime strings.
+export type NitroRequestOptions = FetchOptions
+export type Fetcher = <T = unknown>(url: string, options?: NitroRequestOptions) => Promise<T>
 
 export async function nitroRequest<T>(fetcher: Fetcher, url: string, options?: NitroRequestOptions): Promise<T> {
   try {
-    const response = await fetcher<T>(url, options)
-    return response as unknown as T
+    return await fetcher<T>(url, options)
   } catch (error) {
     if (options?.signal?.aborted) {
       throw new CancelledError()

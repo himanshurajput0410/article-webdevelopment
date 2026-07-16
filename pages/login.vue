@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { Eye, EyeOff } from '@lucide/vue'
+
 const route = useRoute()
 const router = useRouter()
 const { login } = useAuth()
 
 const email = ref('')
 const password = ref('')
+const passwordVisible = ref(false)
 const submitting = ref(false)
 const errorMessage = ref<string | null>(null)
 
@@ -45,15 +48,27 @@ async function onSubmit() {
 
       <div>
         <label for="password" class="mb-1 block text-sm font-medium text-gray-700">Password</label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          autocomplete="current-password"
-          required
-          placeholder="password123"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-        >
+        <div class="relative">
+          <input
+            id="password"
+            v-model="password"
+            :type="passwordVisible ? 'text' : 'password'"
+            autocomplete="current-password"
+            required
+            placeholder="password123"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+          >
+          <button
+            type="button"
+            class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-gray-400 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            :aria-label="passwordVisible ? 'Hide password' : 'Show password'"
+            :aria-pressed="passwordVisible"
+            @click="passwordVisible = !passwordVisible"
+          >
+            <EyeOff v-if="passwordVisible" :size="18" aria-hidden="true" />
+            <Eye v-else :size="18" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <p v-if="errorMessage" class="text-sm font-medium text-red-700" role="alert">{{ errorMessage }}</p>
