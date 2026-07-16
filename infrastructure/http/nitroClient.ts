@@ -11,7 +11,8 @@ type NitroRequestOptions = Parameters<typeof $fetch>[1]
 
 export async function nitroRequest<T>(url: string, options?: NitroRequestOptions): Promise<T> {
   try {
-    return await $fetch<T>(url, options)
+    const response = await $fetch<T>(url, options)
+    return response as unknown as T
   } catch (error) {
     if (options?.signal?.aborted) {
       throw new CancelledError()
