@@ -1,12 +1,28 @@
 import type { Article } from '~/models/domain/article'
+import type { ApiError } from '~/types/api'
+import { toApiError } from '~/utils/error'
 
-// Builds on useArticles so opening a detail page directly still works,
-// and coming from the list doesn't trigger a second fetch.
 export async function useArticle(id: string) {
-  const store = useArticlesStore()
-  const { pending, error, refresh } = await useArticles()
+  const repository = useArticleRepository()
 
-  const article = computed<Article | null>(() => store.getById(id) ?? null)
+  const article = ref<Article | null>(null)
+  const pending = ref(true)
+  const error = ref<ApiError | null>(null)
 
-  return { article, pending, error, refresh }
+  async function load() {
+    pending.value = true
+    error.value = null
+
+    try {
+      article.value = await repository.getById(id)
+    } catch (caught) {
+      error.value = toApiError(caught)
+    } finally {
+      pending.value = false
+    }
+  }
+
+  await load()
+
+  return { article, pending, error, refresh: load }
 }
