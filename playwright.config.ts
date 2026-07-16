@@ -13,7 +13,9 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 60000,
+    // a fully cold build (no .nuxt cache, e.g. a fresh clone or CI) can take
+    // well over a minute
+    timeout: 180000,
   },
   projects: [
     {
