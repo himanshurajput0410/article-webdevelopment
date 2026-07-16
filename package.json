@@ -9,7 +9,10 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.10.1",
@@ -20,10 +23,15 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^0.7.4",
+    "@nuxt/test-utils": "^4.0.3",
     "@nuxtjs/tailwindcss": "^6.13.1",
     "@types/node": "^26.1.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vue/test-utils": "^2.4.11",
     "eslint": "^9.17.0",
+    "happy-dom": "^20.10.6",
     "typescript": "^5.7.2",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.3.7"
   }
 }
