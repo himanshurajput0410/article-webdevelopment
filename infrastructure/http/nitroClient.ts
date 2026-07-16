@@ -7,11 +7,12 @@ interface TransportError {
   data?: { message?: string }
 }
 
-type NitroRequestOptions = Parameters<typeof $fetch>[1]
+export type Fetcher = typeof $fetch
+export type NitroRequestOptions = Parameters<Fetcher>[1]
 
-export async function nitroRequest<T>(url: string, options?: NitroRequestOptions): Promise<T> {
+export async function nitroRequest<T>(fetcher: Fetcher, url: string, options?: NitroRequestOptions): Promise<T> {
   try {
-    const response = await $fetch<T>(url, options)
+    const response = await fetcher<T>(url, options)
     return response as unknown as T
   } catch (error) {
     if (options?.signal?.aborted) {

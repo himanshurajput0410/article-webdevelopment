@@ -2,16 +2,18 @@ import type { BookmarkRepository, CreateBookmarkInput, UpdateBookmarkInput } fro
 import type { Bookmark } from '~/models/domain/bookmark'
 import type { ApiBookmark } from '~/models/api/bookmark'
 import { mapApiBookmarkToDomain } from '~/utils/bookmark'
-import { nitroRequest } from '~/infrastructure/http/nitroClient'
+import { nitroRequest, type Fetcher } from '~/infrastructure/http/nitroClient'
 
 export class NitroBookmarkRepository implements BookmarkRepository {
+  constructor(private readonly fetcher: Fetcher) {}
+
   async list(signal?: AbortSignal): Promise<Bookmark[]> {
-    const response = await nitroRequest<ApiBookmark[]>('/api/bookmarks', { signal })
+    const response = await nitroRequest<ApiBookmark[]>(this.fetcher, '/api/bookmarks', { signal })
     return response.map(mapApiBookmarkToDomain)
   }
 
   async add(input: CreateBookmarkInput, signal?: AbortSignal): Promise<Bookmark> {
-    const response = await nitroRequest<ApiBookmark>('/api/bookmarks', {
+    const response = await nitroRequest<ApiBookmark>(this.fetcher, '/api/bookmarks', {
       method: 'POST',
       body: input,
       signal,
@@ -20,7 +22,7 @@ export class NitroBookmarkRepository implements BookmarkRepository {
   }
 
   async update(id: string, input: UpdateBookmarkInput, signal?: AbortSignal): Promise<Bookmark> {
-    const response = await nitroRequest<ApiBookmark>(`/api/bookmarks/${id}`, {
+    const response = await nitroRequest<ApiBookmark>(this.fetcher, `/api/bookmarks/${id}`, {
       method: 'PUT',
       body: input,
       signal,
@@ -29,6 +31,6 @@ export class NitroBookmarkRepository implements BookmarkRepository {
   }
 
   async remove(id: string, signal?: AbortSignal): Promise<void> {
-    await nitroRequest<unknown>(`/api/bookmarks/${id}`, { method: 'DELETE', signal })
+    await nitroRequest<unknown>(this.fetcher, `/api/bookmarks/${id}`, { method: 'DELETE', signal })
   }
 }
