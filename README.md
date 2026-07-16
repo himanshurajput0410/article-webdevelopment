@@ -1,6 +1,6 @@
 # Articles
 
-A Nuxt 3 app that pulls articles from a mock news API, shows them as a list, and lets you open each one in detail. Built for the Web Developer Challenge brief: SSR, strict TypeScript, Pinia, native `useFetch`, Tailwind, no `any` anywhere.
+A Nuxt 3 app that started as a read-only article viewer (Part 1) and is now an authenticated Article Manager: log in, search a large paginated catalogue, and keep a personal collection of bookmarks with notes. SSR, strict TypeScript, Pinia, no `any` anywhere, and now a proper domain/infrastructure split, a Nitro-backed "backend," and a real test suite.
 
 ## Running it
 
@@ -11,86 +11,133 @@ npm run build
 npm run preview
 npm run typecheck
 npm run lint
+npm run test            # unit + component tests (Vitest)
+npm run test:coverage   # same, with a coverage report
+npm run test:e2e        # Playwright happy path (starts its own dev server)
 ```
 
-No `.env` needed just to run it. The API URL is already set to the one from the brief. If you ever want to point it at something else:
+No `.env` needed. There's no external API anymore - the whole "backend" (articles, auth, bookmarks) is Nitro server routes backed by an in-memory dataset and in-memory sessions/bookmarks, seeded on startup. That also means sessions and bookmarks reset whenever the dev server restarts - fine for this challenge, called out again below.
 
-```bash
-NUXT_PUBLIC_ARTICLES_API_URL=https://your-endpoint
-```
+**Please check it on both a phone-sized viewport and a normal desktop window**, same as Part 1 - the layout is still mobile-first.
 
-**Please check it on both a phone-sized viewport and a normal desktop window.** The layout was built mobile-first from the Figma screenshots, then adapted for wider screens. List cards switch from a stacked card to a left-image/right-text row past the `sm` breakpoint, and grid view caps at 3 columns. Worth seeing both to notice the difference.
+## Logging in
+
+There's no signup, just a few seeded accounts (see `server/utils/users.ts`), all with the same password:
+
+| Email | Password |
+|---|---|
+| ada@example.com | password123 |
+| grace@example.com | password123 |
+| alan@example.com | password123 |
 
 ## How it's organised
 
 ```
-components/
-  ui/            small generic pieces (Button, SkeletonLine)
-  common/        EmptyState, ErrorState
-  ArticleCard.vue, ArticleSkeletonCard.vue   the actual article card + its loading placeholder
-composables/
-  useAPI.ts      wraps useFetch, this is the only file that calls it
-  useArticles.ts fetches the list, maps it, puts it in the store
-  useArticle.ts  finds one article by id (built on top of useArticles)
-layouts/         default.vue, just the page shell
 models/
-  api/           what the API actually returns
+  api/           what the Nitro routes actually return
   domain/        what the UI actually uses
-pages/
-  index.vue           the list
-  articles/[id].vue    the detail page
+  domain/ports/  ArticleRepository, BookmarkRepository, AuthRepository interfaces -
+                 plain TypeScript, no Nuxt/Vue imports allowed (enforced by an ESLint rule)
+infrastructure/
+  http/          nitroRequest - the one place that calls the injected fetcher and
+                 turns transport errors into domain error types
+  repositories/  Nitro*Repository - implements the ports above against /api/**
+usecases/        optimistic add/edit/remove + rollback, search cancellation, login/logout -
+                 orchestration that used to live in composables, now framework-free and
+                 testable with a fake repository instead of a real one
+plugins/
+  repositories.ts   builds the three repositories once per request and injects them
+  auth.server.ts    seeds the auth store from the request's session before the app renders
+composables/
+  useAPI.ts              (Part 1) wraps useFetch - still there, nothing new calls it
+  useArticleRepository.ts, useBookmarkRepository.ts, useAuthRepository.ts
+                         thin - just pull the injected repository out of the Nuxt app
+  useArticle.ts, useArticleSearch.ts, useAuth.ts, useBookmarks.ts
+                         what pages actually call; each wires a repository + use-case
+                         + Pinia store together
+middleware/
+  auth.ts        redirects to /login if you're not authenticated
+server/
+  api/           auth/*, articles/*, bookmarks/* - the mock backend
+  middleware/session.ts   reads the session cookie on every request
+  utils/         seeded users, in-memory session/bookmark stores, the article dataset
+  data/articles.json      seeded dataset (see "Assumptions" below)
 stores/
-  articles.ts    the fetched articles, shared between list and detail
-  favorites.ts   ids of articles you've saved
-types/           small shared types (ApiError)
-utils/           id generation, date formatting, content cleanup, the raw-to-domain mapper
-public/icons/    icons exported from the Figma file
+  bookmarks.ts   your bookmarks (replaces Part 1's localStorage-only favorites store)
+  auth.ts        the current user, if any
+components/
+  ui/, common/           (Part 1) generic pieces
+  ArticleCard.vue, ArticleSkeletonCard.vue, BookmarkButton.vue, BookmarkNoteForm.vue
+pages/
+  index.vue, articles/[id].vue, login.vue, bookmarks.vue (protected)
+tests/
+  unit/          utils, mappers, repositories (mocked transport), use-cases (fake repository)
+  component/     key UI states via @nuxt/test-utils
+  e2e/           one Playwright happy path
+utils/           (Part 1: id/format/article mapper) + debounce, validateNote, error mapping,
+                 bookmark/user mappers
 ```
 
-## Why it's structured this way
+## Why there's now a domain/infrastructure split
 
-Nothing calls `useFetch` directly except `useAPI`. Every other composable goes through it, so there's one place that turns a failed request into a normal `{ message, statusCode }` object instead of some raw error nobody's checked the shape of.
+Part 1's composables called `useFetch` directly. That's fine for a read-only app, but the brief specifically wants to see dependency inversion, not just a folder layout, so this stage adds a real seam:
 
-`useArticles` fetches the feed, maps each raw article into the shape the UI actually wants, and stores it in Pinia. `useArticle(id)` doesn't fetch on its own. It just calls `useArticles` and looks the id up in the store. Going from the list to a detail page doesn't trigger a second request because Nuxt already has the data cached under the same key. Opening a detail page directly still works fine too, since it just fetches fresh over SSR.
+- `models/domain/ports/*Repository.ts` are plain interfaces - `search`, `getById`, `add`, `update`, `remove`, `login`, `logout`, `me`. No Vue, no Nuxt, no `$fetch`. An ESLint rule (`no-restricted-imports` scoped to `models/domain/**`) actually enforces that, so it's not just a promise.
+- `infrastructure/repositories/Nitro*Repository.ts` implement those interfaces against the Nitro routes. They take their HTTP client (a `$fetch`-shaped function) as a constructor argument instead of importing `$fetch` themselves - more on why below.
+- `usecases/*` hold the orchestration that used to live in composables: the optimistic add/edit/remove + rollback for bookmarks, the "abort the previous search before starting a new one" logic, login/logout. These are plain functions that take a repository (and, for bookmarks, a small state port) as arguments - no framework dependency, so they're unit-tested against a fake repository instead of Nitro.
+- `plugins/repositories.ts` builds the three repositories once and provides them (`$articleRepository`, `$bookmarkRepository`, `$authRepository`). Composables pull them out via `useNuxtApp()` - they depend on the interface, never on `NitroArticleRepository` directly. Swapping REST for GraphQL later means touching `infrastructure/`, not the composables, stores, or pages.
 
-Both of these are `async` functions, `await`-ed in the page's `<script setup>`. That's what makes Nuxt wait for the data before it renders, so you don't get a flash of nothing on first load.
+One thing this refactor genuinely fixed rather than just reorganised: repositories take their fetcher as a constructor argument instead of calling the global `$fetch`. That's not just for testability (though it helps - repository tests just pass a `vi.fn()`) - it's also what makes SSR auth actually work. An internal `$fetch` call made during server-side rendering doesn't carry the browser's cookies unless you forward them explicitly. `plugins/repositories.ts` injects `useRequestFetch()` on the server and plain `$fetch` on the client, so a logged-in user's bookmarks load correctly on the very first server-rendered paint. I only found this because the bookmarks page was quietly 401ing during SSR while the header showed the right user - worth mentioning since it's an easy mistake to ship silently.
+
+## Auth flow, and why there's no flash
+
+Login posts credentials to `/api/auth/login`, which checks them against the seeded list and sets an httpOnly, `sameSite: lax` session cookie (an opaque UUID mapped to a user server-side - a JWT would've added a signing secret for no real benefit here, since there's one process and one source of truth anyway). `server/middleware/session.ts` reads that cookie on every request and attaches the user (or `null`) to `event.context.auth`.
+
+The no-flash part: `plugins/auth.server.ts` is a server-only plugin that reads `event.context.auth` and seeds the `auth` Pinia store *before* the app renders. Pinia's Nuxt module already serializes store state into the SSR payload and rehydrates it client-side, so the client picks up the same authenticated state Vue just rendered with - no separate client-side check, no redirect-then-flash. `middleware/auth.ts` reads that same store; because it's already correct at SSR time, refreshing a protected page renders authenticated immediately.
+
+## Bookmarks: optimistic updates and what happens when they fail
+
+Add/edit/remove all follow the same shape in `usecases/bookmarkUseCases.ts`: snapshot the current state, apply the change to the store immediately, call the repository, then either replace the optimistic entry with the real one (success) or restore the exact pre-change snapshot (failure) and re-throw so the UI can show an error. The composable/component layer just awaits the call in a `try/catch` - no unhandled rejections, no broken UI on failure.
+
+Notes are validated in `utils/validateNote.ts` (trimmed, capped at 500 characters) - checked client-side before the optimistic update even happens, and re-checked server-side in the Nitro route, since the client can't be trusted.
+
+## Search: why it's server-driven now
+
+Part 1's list loaded the full feed and filtered/paginated it in the browser - it even says so in its own "Assumptions" section, because the mock API didn't support page parameters. Part 2's `/api/articles` route does (`?q=&page=`), backed by a locally seeded dataset (see below) with an artificial delay so cancellation actually has something to race against.
+
+`utils/debounce.ts` delays the search by 350ms after the last keystroke. `usecases/articleSearchUseCases.ts` owns the cancellation: each call aborts the previous in-flight request's `AbortController` before starting a new one, so a slow, superseded response can never land after a newer one and overwrite it with stale results. The repository/`nitroRequest` layer treats an aborted request as a `CancelledError`, which the composable explicitly ignores rather than showing as an error.
+
+The detail page also changed here: Part 1 deliberately had no per-article endpoint and reused the already-loaded list. Once the list only ever holds the current page of search results, that stops working for an article that's scrolled off-page (or reached by a direct link), so `server/api/articles/[id].get.ts` and a rewritten `useArticle` bring back a real per-article fetch. Necessary, but worth flagging since it reverses something Part 1 specifically explained.
 
 ## Typing
 
-Strict mode is on everywhere. `any` is banned both by `tsconfig` and by an ESLint rule, so it's not just something someone could ignore.
-
-The raw API model (`models/api/article.ts`) matches what the feed actually sends, including the annoying parts. No `author`, no `description`, no image, on a good chunk of articles. I checked the real payload and roughly 1 in 10 articles is missing an image or an author. The domain model (`models/domain/article.ts`) is what components actually render, with fallbacks already applied once in `utils/article.ts` instead of every template writing its own `?? 'Unknown'`.
-
-There's also no article id in the feed at all, just a `url`, which happens to be unique. `utils/id.ts` turns that url into a short id so articles can have their own route.
+Same as Part 1: strict mode everywhere, `any` banned by both `tsconfig` and ESLint. The api↔domain split and pure mapper convention (`utils/article.ts`) is extended to bookmarks (`utils/bookmark.ts`) and users (`utils/user.ts`) rather than reinvented.
 
 ## Handling things going wrong
 
-Each composable returns `pending`, `error`, and the data, and every page branches on those explicitly. Loading, error, empty, and "not found" all look different instead of collapsing into one generic message. There's a retry button on the error state, and a root `error.vue` catches anything truly unexpected.
+Same philosophy as Part 1's read side, extended to writes: every composable/use-case surfaces `pending`/`error` (or throws a typed error the caller catches), and every page/component branches on loading, error, empty, and success explicitly. `models/domain/errors.ts` gives repositories a small set of real error types (`NotFoundError`, `UnauthorizedError`, `ValidationError`, `CancelledError`) instead of leaking raw fetch failures, so a component can tell "you're not logged in" apart from "the note was too long" apart from "the network died."
 
-Two specific things worth knowing about:
+## Testing
 
-The feed truncates `content` with a `[+123 chars]` marker, and in this particular mock there's random filler text glued on after that marker. It gets cut off before display.
-
-If the API ever came back with `articles` missing, not an array, or with an entry that has no `url`, the app used to just crash trying to map over it. That's fixed now. A bad response just shows the empty state instead of breaking the page.
-
-## Pinia: what's actually in it and why
-
-The article list is shared state by definition, since both the list and detail pages need it, so that's an easy call. The favorites store is a bit more interesting. It's a heart button on the detail page that saves an article, backed by `localStorage`. It has to be a store rather than a local ref, otherwise it'd forget itself every time you left the page and came back. The localStorage read happens in `app.vue`'s `onMounted` on purpose. Reading it any earlier caused a real hydration mismatch (Vue complaining that server and client rendered different things), because the server has no access to localStorage at all.
-
-## A couple of things I added that weren't strictly asked for
-
-The Figma design has a search icon, and asked that the list not just dump all 79 articles on the page. So there's a working title search, and the list loads 8 at a time with a "Load More" button instead of everything at once.
+- **Unit (Vitest, `tests/unit/`)**: pure utils (debounce with fake timers, note validation edge cases, formatting), mappers (round-trip + malformed-payload cases), repositories against a mocked fetcher (right endpoint/method/query/body, error translation, cancellation), and use-cases against a fake repository (optimistic transition *and* rollback, search cancellation). No component mounting, no real network. `utils/`, `models/`, `infrastructure/`, and `usecases/` are at 100% coverage (`npm run test:coverage`).
+- **Component (`tests/component/`, via `@nuxt/test-utils`)**: loading, error, empty, success, and a dedicated optimistic-then-rollback test for the bookmark toggle.
+- **E2E (`tests/e2e/`, Playwright)**: one happy path - log in, search, bookmark an article, see it in the collection.
 
 ## Assumptions I made
 
-- There's no per-article endpoint, only the full list. The detail page reuses the cached list instead of hitting a second URL.
-- The Figma link needs a login and wouldn't open for me directly, so I matched the mobile screens from the screenshots and icon exports you shared, then adapted the layout for desktop myself.
-- The "Article" label in the detail header and the save/heart button aren't backed by any API data. They're just UI, since the feed has no favorites concept.
-- Pagination is client-side ("Load More") since the mock API doesn't support page parameters.
+- No Figma for Part 2 - the login, bookmarks, and search UI reuse Part 1's existing visual language (card/accent colors, `Button`/`EmptyState`/`ErrorState`) rather than inventing a new design system.
+- The article dataset is a one-time snapshot of Part 1's mock feed (`scripts/seed-articles.mjs`), duplicated to ~300 rows so pagination has something real to page through - not fetched live on every request.
+- Sessions and bookmarks are in-memory (a `Map`, per the brief) and reset on server restart. SQLite persistence is called out as a bonus in the brief and wasn't implemented here.
+- Bookmarking requires being logged in. Clicking the heart while logged out redirects to `/login?redirect=...` rather than hiding the button.
+- Mock credentials use plaintext password comparison (`server/utils/users.ts`) - acceptable for a seeded demo list, not something to carry into anything real.
+- Git history for this stage is local commits only, not pushed - by request, so this could be reviewed before anything went to the remote.
 
-## What I'd do with more time
+## What I'd improve with more time
 
-- Unit tests for the small pure functions (id generation, content cleanup, date formatting, the mapper) and a few component tests for the loading/error/empty states.
-- Real API pagination instead of client-side slicing, if the feed ever supports it.
-- A GitHub Actions workflow running typecheck/lint/build on every push.
-- Deploy it somewhere (Vercel/Netlify) so there's a live link, not just a repo.
+- SQLite (or at least a JSON file) for bookmarks so they survive a server restart.
+- CI running typecheck/lint/test on every push.
+- A basic rate limit on `/api/auth/login`.
+- `NuxtErrorBoundary` around the bookmark list/note-editing area specifically.
+- An accessibility pass on the login and note forms (they work with a keyboard and screen reader today, but haven't had a dedicated audit).
+- Broader Playwright coverage beyond the one happy path (logout, a failed login, the rollback-on-network-failure case).
+- A live deployment - skipped for this stage by request.
