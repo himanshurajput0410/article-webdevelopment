@@ -12,14 +12,39 @@ if (!pending.value && !article.value && !error.value) {
   setResponseStatus(404)
 }
 
-const favorites = useFavoritesStore()
-const isSaved = computed(() => (article.value ? favorites.isSaved(article.value.id) : false))
+const { isAuthenticated } = useAuth()
+const { isBookmarked, getByArticleId, addBookmark, removeBookmark } = await useBookmarks()
+
+const isSaved = computed(() => (article.value ? isBookmarked(article.value.id) : false))
+const bookmarkPending = ref(false)
+const bookmarkError = ref<string | null>(null)
 
 const imageFailed = ref(false)
 const showImage = computed(() => Boolean(article.value?.imageUrl) && !imageFailed.value)
 
-function toggleSaved() {
-  if (article.value) favorites.toggle(article.value.id)
+async function toggleSaved() {
+  if (!article.value) return
+
+  if (!isAuthenticated.value) {
+    await router.push(`/login?redirect=${encodeURIComponent(route.fullPath)}`)
+    return
+  }
+
+  bookmarkPending.value = true
+  bookmarkError.value = null
+
+  try {
+    if (isSaved.value) {
+      const bookmark = getByArticleId(article.value.id)
+      if (bookmark) await removeBookmark(bookmark.id)
+    } else {
+      await addBookmark(article.value.id)
+    }
+  } catch (caught) {
+    bookmarkError.value = caught instanceof Error ? caught.message : 'Something went wrong. Please try again.'
+  } finally {
+    bookmarkPending.value = false
+  }
 }
 
 // A push to "/" is a brand new forward navigation, so vue-router has no
@@ -55,18 +80,11 @@ useHead(() => ({
 
           <span class="text-xl font-medium text-white">Article</span>
 
-          <button
-            v-if="article"
-            type="button"
-            class="flex h-8 w-10 items-center justify-center transition-transform active:scale-90"
-            :aria-label="isSaved ? 'Remove from favorites' : 'Add to favorites'"
-            @click="toggleSaved"
-          >
-            <img v-if="!isSaved" src="/icons/heart.png" alt="" class="h-8 w-10">
-            <img v-else src="/icons/heart-minus.png" alt="" class="h-8 w-10">
-          </button>
+          <BookmarkButton v-if="article" :bookmarked="isSaved" :pending="bookmarkPending" @toggle="toggleSaved" />
           <div v-else class="h-9 w-9" />
         </div>
+
+        <p v-if="bookmarkError" class="mb-4 text-sm font-medium text-red-300" role="alert">{{ bookmarkError }}</p>
 
         <template v-if="pending">
           <UiSkeletonLine height="1.75rem" class="mb-2 bg-white/20" />
