@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { articles, pending, error, refresh } = await useArticles()
+const { articles, query, pending, error, hasMore, loadMore, retry } = await useArticleSearch()
 
 // Cookie (not localStorage) so the preference survives a refresh *and*
 // renders correctly on the very first SSR paint, no post-mount flash.
@@ -9,14 +9,11 @@ const viewMode = useCookie<'list' | 'grid'>('view-mode', {
 })
 // useState, not ref: this page remounts every time you come back from an
 // article (router.back() tears down and re-runs this script), so a plain
-// ref would forget the search term and how much of the list was loaded.
-// That breaks scroll restoration too — the browser scrolls back to the
-// right pixel offset, but if the list re-rendered with only the first
-// page again, that offset lands on blank space instead of your article.
+// ref would forget whether the search box was open. useArticleSearch does
+// the same for the query/results themselves.
 const searchOpen = useState('articles-search-open', () => false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const searchToggleButton = ref<HTMLButtonElement | null>(null)
-const query = useState('articles-search-query', () => '')
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'list' ? 'grid' : 'list'
@@ -34,26 +31,6 @@ async function toggleSearch() {
   }
   await nextTick()
   searchInput.value?.focus()
-}
-
-const filteredArticles = computed(() => {
-  const term = query.value.trim().toLowerCase()
-  if (!term) return articles.value
-  return articles.value.filter((article) => article.title.toLowerCase().includes(term))
-})
-
-const PAGE_SIZE = 8
-const visibleCount = useState('articles-visible-count', () => PAGE_SIZE)
-
-watch(query, () => {
-  visibleCount.value = PAGE_SIZE
-})
-
-const visibleArticles = computed(() => filteredArticles.value.slice(0, visibleCount.value))
-const hasMore = computed(() => visibleCount.value < filteredArticles.value.length)
-
-function loadMore() {
-  visibleCount.value += PAGE_SIZE
 }
 
 const gridClasses = computed(() =>
@@ -115,7 +92,13 @@ const gridClasses = computed(() =>
       v-else-if="error"
       :message="error.message"
       :retrying="pending"
-      @retry="refresh()"
+      @retry="retry()"
+    />
+
+    <CommonEmptyState
+      v-else-if="articles.length === 0 && query.trim()"
+      title="No matches"
+      :message="`Nothing found for &quot;${query.trim()}&quot;.`"
     />
 
     <CommonEmptyState
@@ -124,16 +107,10 @@ const gridClasses = computed(() =>
       message="Check back later for new articles."
     />
 
-    <CommonEmptyState
-      v-else-if="filteredArticles.length === 0"
-      title="No matches"
-      :message="`Nothing found for &quot;${query.trim()}&quot;.`"
-    />
-
     <template v-else>
       <div :class="gridClasses">
         <ArticleCard
-          v-for="article in visibleArticles"
+          v-for="article in articles"
           :key="article.id"
           :article="article"
           :variant="viewMode"
