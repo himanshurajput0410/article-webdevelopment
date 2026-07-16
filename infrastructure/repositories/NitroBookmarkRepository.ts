@@ -1,0 +1,34 @@
+import type { BookmarkRepository, CreateBookmarkInput, UpdateBookmarkInput } from '~/models/domain/ports/BookmarkRepository'
+import type { Bookmark } from '~/models/domain/bookmark'
+import type { ApiBookmark } from '~/models/api/bookmark'
+import { mapApiBookmarkToDomain } from '~/utils/bookmark'
+import { nitroRequest } from '~/infrastructure/http/nitroClient'
+
+export class NitroBookmarkRepository implements BookmarkRepository {
+  async list(signal?: AbortSignal): Promise<Bookmark[]> {
+    const response = await nitroRequest<ApiBookmark[]>('/api/bookmarks', { signal })
+    return response.map(mapApiBookmarkToDomain)
+  }
+
+  async add(input: CreateBookmarkInput, signal?: AbortSignal): Promise<Bookmark> {
+    const response = await nitroRequest<ApiBookmark>('/api/bookmarks', {
+      method: 'POST',
+      body: input,
+      signal,
+    })
+    return mapApiBookmarkToDomain(response)
+  }
+
+  async update(id: string, input: UpdateBookmarkInput, signal?: AbortSignal): Promise<Bookmark> {
+    const response = await nitroRequest<ApiBookmark>(`/api/bookmarks/${id}`, {
+      method: 'PUT',
+      body: input,
+      signal,
+    })
+    return mapApiBookmarkToDomain(response)
+  }
+
+  async remove(id: string, signal?: AbortSignal): Promise<void> {
+    await nitroRequest<unknown>(`/api/bookmarks/${id}`, { method: 'DELETE', signal })
+  }
+}
