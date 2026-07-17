@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { gotoAndHydrate } from './helpers'
 
 const USER = { email: 'ada@example.com', password: 'password123' }
 
 test('log in, search, bookmark an article, and see it in the collection', async ({ page }) => {
-  // Nuxt dev mode compiles routes on demand - the very first navigation to a
-  // route in a cold `npm run dev` can return HTML before Vue finishes
-  // hydrating, so wait for the network to settle before interacting.
-  await page.goto('/login', { waitUntil: 'networkidle' })
+  await gotoAndHydrate(page, '/login')
   await page.locator('#email').fill(USER.email)
   await page.locator('#password').fill(USER.password)
   await page.getByRole('button', { name: 'Log in' }).click()

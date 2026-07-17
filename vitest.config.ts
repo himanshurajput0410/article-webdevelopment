@@ -14,7 +14,7 @@ export default defineVitestConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['utils/**', 'models/**', 'infrastructure/**', 'usecases/**'],
+      include: ['utils/**', 'models/**', 'infrastructure/**', 'usecases/**', 'server/utils/articles-data.ts'],
     },
   },
 })

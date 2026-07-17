@@ -26,4 +26,20 @@ describe('validateNote', () => {
     expect(result.valid).toBe(false)
     expect(result.valid ? null : result.message).toMatch(/500/)
   })
+
+  it('rejects a note far beyond the max length', () => {
+    const result = validateNote('a'.repeat(NOTE_MAX_LENGTH * 4))
+    expect(result.valid).toBe(false)
+  })
+
+  it('trims whitespace before measuring length, so padded-but-valid notes pass', () => {
+    const note = ' '.repeat(10) + 'a'.repeat(NOTE_MAX_LENGTH) + ' '.repeat(10)
+    const result = validateNote(note)
+
+    expect(result).toEqual({ valid: true, value: 'a'.repeat(NOTE_MAX_LENGTH) })
+  })
+
+  it('treats a note of only newlines and tabs the same as empty', () => {
+    expect(validateNote('\n\n\t\t\n')).toEqual({ valid: true, value: '' })
+  })
 })

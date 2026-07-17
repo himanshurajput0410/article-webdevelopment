@@ -3,6 +3,7 @@ import { createArticleSearchUseCases } from '~/usecases/articleSearchUseCases'
 import type { ArticleRepository, ArticleSearchParams } from '~/models/domain/ports/ArticleRepository'
 import type { PaginatedResult } from '~/models/domain/pagination'
 import type { Article } from '~/models/domain/article'
+import { CancelledError } from '~/models/domain/errors'
 
 function createFakeArticleRepository() {
   const signals: AbortSignal[] = []
@@ -44,5 +45,32 @@ describe('articleSearchUseCases.search', () => {
 
     expect(signals[0]?.aborted).toBe(false)
     expect(signals[1]?.aborted).toBe(false)
+  })
+
+  it('discards a slower superseded response even if it would resolve after the newer one', async () => {
+    // The classic race: "first" takes longer than "second", so without
+    // cancellation its result would land last and overwrite the newer one.
+    const resolvedQueries: string[] = []
+    const repository: ArticleRepository = {
+      async search(params: ArticleSearchParams, signal?: AbortSignal): Promise<PaginatedResult<Article>> {
+        const delayMs = params.query === 'first' ? 50 : 10
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+        if (signal?.aborted) throw new CancelledError()
+        resolvedQueries.push(params.query)
+        return { items: [], page: params.page, pageSize: params.pageSize ?? 10, total: 0, totalPages: 0 }
+      },
+      async getById(): Promise<Article | null> {
+        return null
+      },
+    }
+    const useCases = createArticleSearchUseCases(repository)
+
+    const firstCall = useCases.search({ query: 'first', page: 1 }).catch((error: unknown) => error)
+    const secondCall = useCases.search({ query: 'second', page: 1 })
+
+    const [firstOutcome] = await Promise.all([firstCall, secondCall])
+
+    expect(firstOutcome).toBeInstanceOf(CancelledError)
+    expect(resolvedQueries).toEqual(['second'])
   })
 })
