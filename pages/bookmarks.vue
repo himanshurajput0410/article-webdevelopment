@@ -5,6 +5,7 @@ definePageMeta({ middleware: 'auth' })
 
 const { bookmarks, pending, error, refresh, updateNote, removeBookmark } = await useBookmarks()
 const articleRepository = useArticleRepository()
+const toast = useToast()
 
 const articlesById = ref<Record<string, Article | null>>({})
 
@@ -27,6 +28,7 @@ async function onSaveNote(bookmarkId: string, note: string) {
 
   try {
     await updateNote(bookmarkId, note)
+    toast.success('Note saved')
   } catch (caught) {
     noteErrors.value[bookmarkId] = caught instanceof Error ? caught.message : 'Something went wrong. Please try again.'
   } finally {
@@ -39,6 +41,7 @@ async function onRemove(bookmarkId: string) {
 
   try {
     await removeBookmark(bookmarkId)
+    toast.success('Bookmark removed')
   } catch {
     // the use-case already rolled the store back - nothing else to do here
   } finally {

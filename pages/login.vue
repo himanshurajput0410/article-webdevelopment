@@ -4,6 +4,7 @@ import { Eye, EyeOff } from '@lucide/vue'
 const route = useRoute()
 const router = useRouter()
 const { login } = useAuth()
+const toast = useToast()
 
 const email = ref('')
 const password = ref('')
@@ -17,6 +18,7 @@ async function onSubmit() {
 
   try {
     await login({ email: email.value, password: password.value })
+    toast.success('Logged in successfully')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     await router.push(redirect)
   } catch (error) {
