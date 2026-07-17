@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { NitroAuthRepository } from '~/infrastructure/repositories/NitroAuthRepository'
-import { UnauthorizedError } from '~/models/domain/errors'
+import { UnauthorizedError, ValidationError } from '~/models/domain/errors'
 import type { Fetcher, NitroRequestOptions } from '~/infrastructure/http/nitroClient'
 
 function createFetcher(impl: (url: string, options?: NitroRequestOptions) => unknown): Fetcher {
@@ -28,6 +28,17 @@ describe('NitroAuthRepository.login', () => {
     const repository = new NitroAuthRepository(fetcher)
 
     await expect(repository.login({ email: 'ada@example.com', password: 'wrong' })).rejects.toBeInstanceOf(UnauthorizedError)
+  })
+
+  it('translates a missing-field response into a ValidationError', async () => {
+    const fetcher = createFetcher(async () => {
+      throw { statusCode: 422, statusMessage: 'Email and password are required.' }
+    })
+    const repository = new NitroAuthRepository(fetcher)
+
+    const rejection = repository.login({ email: '', password: '' })
+    await expect(rejection).rejects.toBeInstanceOf(ValidationError)
+    await expect(rejection).rejects.toMatchObject({ message: 'Email and password are required.' })
   })
 })
 

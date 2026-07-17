@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: false,
   // all specs share one Nitro process and its in-memory sessions/bookmarks -
   // run them one at a time so tests can't interfere with each other
