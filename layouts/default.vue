@@ -1,9 +1,11 @@
 <script setup lang="ts">
 const { user, isAuthenticated, logout } = useAuth()
 const router = useRouter()
+const toast = useToast()
 
 async function onLogout() {
   await logout()
+  toast.success('Logged out')
   await router.push('/')
 }
 </script>

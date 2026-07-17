@@ -14,6 +14,7 @@ if (!pending.value && !article.value && !error.value) {
 
 const { isAuthenticated } = useAuth()
 const { isBookmarked, getByArticleId, addBookmark, removeBookmark } = await useBookmarks()
+const toast = useToast()
 
 const isSaved = computed(() => (article.value ? isBookmarked(article.value.id) : false))
 const bookmarkPending = ref(false)
@@ -37,8 +38,10 @@ async function toggleSaved() {
     if (isSaved.value) {
       const bookmark = getByArticleId(article.value.id)
       if (bookmark) await removeBookmark(bookmark.id)
+      toast.success('Bookmark removed')
     } else {
       await addBookmark(article.value.id)
+      toast.success('Bookmark added')
     }
   } catch (caught) {
     bookmarkError.value = caught instanceof Error ? caught.message : 'Something went wrong. Please try again.'
