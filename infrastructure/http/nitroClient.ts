@@ -23,10 +23,10 @@ export async function nitroRequest<T>(fetcher: Fetcher, url: string, options?: N
       throw new CancelledError()
     }
 
-    const transportError = error as TransportError
-    const statusCode = transportError.statusCode ?? null
+    const transportError = (typeof error === 'object' ? error : null) as TransportError | null
+    const statusCode = transportError?.statusCode ?? null
     const message =
-      transportError.data?.message || transportError.statusMessage || transportError.message || 'Something went wrong. Please try again.'
+      transportError?.data?.message || transportError?.statusMessage || transportError?.message || 'Something went wrong. Please try again.'
 
     if (statusCode === 404) throw new NotFoundError(message)
     if (statusCode === 401) throw new UnauthorizedError(message)

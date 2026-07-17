@@ -119,9 +119,9 @@ Same philosophy as Part 1's read side, extended to writes: every composable/use-
 
 ## Testing
 
-- **Unit (Vitest, `tests/unit/`)**: pure utils (debounce with fake timers, note validation edge cases, formatting), mappers (round-trip + malformed-payload cases), repositories against a mocked fetcher (right endpoint/method/query/body, error translation, cancellation), and use-cases against a fake repository (optimistic transition *and* rollback, search cancellation). No component mounting, no real network. `utils/`, `models/`, `infrastructure/`, and `usecases/` are at 100% coverage (`npm run test:coverage`).
+- **Unit (Vitest, `tests/unit/`)**: pure utils (debounce with fake timers, note validation - empty/whitespace-only/boundary/far-over-limit), mappers (round-trip + malformed-payload cases), the server-side `searchArticles`/`findArticleById` pagination logic (first page, last partial page, past-the-end page, no duplicate/missing articles across pages, case-insensitive matching), repositories against a mocked fetcher (right endpoint/method/query/body, error translation, cancellation, and malformed rejections - `null`, a plain string, a real `Error` - that shouldn't crash the client), and use-cases against a fake repository (optimistic transition *and* rollback, plus a dedicated search race-condition test where a slower, superseded response is proven to lose even though it would otherwise resolve last). No component mounting, no real network. `utils/`, `models/`, `server/utils/articles-data.ts`, `infrastructure/`, and `usecases/` are at 100% coverage (`npm run test:coverage`).
 - **Component (`tests/component/`, via `@nuxt/test-utils`)**: loading, error, empty, success, and a dedicated optimistic-then-rollback test for the bookmark toggle.
-- **E2E (`tests/e2e/`, Playwright)**: one happy path - log in, search, bookmark an article, see it in the collection.
+- **E2E (`tests/e2e/`, Playwright)**: the happy path (log in, search, bookmark an article, see it in the collection), plus invalid login, an unauthenticated visit to a protected route, logout, and - checking the raw SSR response body directly, not just the hydrated DOM - that refreshing a protected page after login renders authenticated with no flash.
 
 ## Assumptions I made
 

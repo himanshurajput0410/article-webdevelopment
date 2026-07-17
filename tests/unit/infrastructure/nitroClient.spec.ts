@@ -32,4 +32,30 @@ describe('nitroRequest', () => {
       message: 'Something went wrong. Please try again.',
     })
   })
+
+  it('does not crash when the rejection is null', async () => {
+    const fetcher = createFetcher(async () => {
+      throw null
+    })
+
+    await expect(nitroRequest(fetcher, '/api/example')).rejects.toBeInstanceOf(RepositoryError)
+  })
+
+  it('does not crash when the rejection is a plain string', async () => {
+    const fetcher = createFetcher(async () => {
+      throw 'network exploded'
+    })
+
+    await expect(nitroRequest(fetcher, '/api/example')).rejects.toMatchObject({
+      message: 'Something went wrong. Please try again.',
+    })
+  })
+
+  it('reads .message off a real Error instance', async () => {
+    const fetcher = createFetcher(async () => {
+      throw new Error('fetch failed')
+    })
+
+    await expect(nitroRequest(fetcher, '/api/example')).rejects.toMatchObject({ message: 'fetch failed' })
+  })
 })

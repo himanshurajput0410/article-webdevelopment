@@ -60,6 +60,19 @@ describe('mapApiArticleToDomain', () => {
     })
   })
 
+  it('handles a payload with fields missing entirely, not just null', () => {
+    // A real upstream bug or version mismatch might omit keys altogether
+    // rather than sending explicit nulls - the mapper shouldn't assume they exist.
+    const incomplete = { url: 'https://example.com/incomplete' } as unknown as ApiArticle
+
+    expect(() => mapApiArticleToDomain(incomplete)).not.toThrow()
+    const article = mapApiArticleToDomain(incomplete)
+    expect(article.title).toBe('Untitled article')
+    expect(article.author).toBeNull()
+    expect(article.sourceName).toBeNull()
+    expect(article.imageUrl).toBeNull()
+  })
+
   it('never leaks the api shape onto the domain model', () => {
     const article = mapApiArticleToDomain(FULL_ARTICLE)
     expect(article).not.toHaveProperty('urlToImage')

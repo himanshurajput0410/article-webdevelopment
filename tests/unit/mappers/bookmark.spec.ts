@@ -56,4 +56,17 @@ describe('mapApiBookmarkToDomain', () => {
 
     expect(mapApiBookmarkToDomain(raw).updatedAt).toBe('2024-01-01T00:00:00Z')
   })
+
+  it('handles a payload with fields missing entirely, not just null', () => {
+    const incomplete = {
+      id: 'b4',
+      articleId: 'a4',
+      createdAt: '2024-01-01T00:00:00Z',
+    } as unknown as ApiBookmark
+
+    expect(() => mapApiBookmarkToDomain(incomplete)).not.toThrow()
+    const bookmark = mapApiBookmarkToDomain(incomplete)
+    expect(bookmark.note).toBe('')
+    expect(bookmark.updatedAt).toBe('2024-01-01T00:00:00Z')
+  })
 })
